@@ -29,7 +29,10 @@ export default function VideoNode({ data, selected }) {
                 {BORDER_COLORS.map(c => (
                   <button key={c.label}
                     className={`note-color-dot ${data.borderColor === c.value ? 'active' : ''}`}
-                    style={{ background: c.value === 'var(--border2)' ? '#3d3930' : c.value, borderColor: c.value === 'var(--border2)' ? '#3d3930' : c.value }}
+                    style={{
+                      background: c.value === 'var(--border2)' ? '#3d3930' : c.value,
+                      borderColor: c.value === 'var(--border2)' ? '#3d3930' : c.value,
+                    }}
                     title={c.label}
                     onPointerDown={e => e.stopPropagation()}
                     onClick={() => data._update && data._update({ borderColor: c.value })}
@@ -42,7 +45,13 @@ export default function VideoNode({ data, selected }) {
         </div>
 
         <div className="video-wrap">
-          <video src={data.src} controls style={{ width: '100%', display: 'block' }} />
+          <video
+            src={data.src}
+            controls
+            loop={data._boardSettings?.loopVideos || false}
+            autoPlay={data._boardSettings?.autoplayVideos || false}
+            style={{ width: '100%', display: 'block' }}
+          />
         </div>
       </div>
     </NodeWrapper>

@@ -1,0 +1,46 @@
+.sel-bar {
+  position: absolute;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex; align-items: center; gap: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 12px;
+  padding: 6px 10px;
+  z-index: 50;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04);
+  animation: selIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: all;
+}
+@keyframes selIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(10px) scale(0.96); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0)     scale(1);    }
+}
+
+.sel-count {
+  font-family: 'DM Mono', monospace; font-size: 11px;
+  color: var(--accent); padding: 0 6px;
+  letter-spacing: 0.04em;
+}
+.sel-divider {
+  width: 1px; height: 18px; background: var(--border2); margin: 0 2px;
+}
+.sel-btn {
+  display: flex; align-items: center; gap: 5px;
+  padding: 6px 10px; border-radius: 7px;
+  background: none; border: none;
+  color: var(--text-dim);
+  font-family: 'DM Sans', sans-serif; font-size: 12px;
+  cursor: pointer; transition: all 0.1s;
+  white-space: nowrap;
+}
+.sel-btn span { font-size: 11px; }
+.sel-btn:hover { background: var(--surface2); color: var(--text); }
+.sel-btn.sel-danger:hover { background: rgba(201,110,110,0.15); color: #c96e6e; }
+.sel-btn.sel-dismiss {
+  font-family: 'DM Mono', monospace; font-size: 10px;
+  color: var(--text-faint); border: 1px solid var(--border);
+  padding: 4px 8px; letter-spacing: 0.04em;
+}
+.sel-btn.sel-dismiss:hover { color: var(--text-dim); border-color: var(--border2); }
