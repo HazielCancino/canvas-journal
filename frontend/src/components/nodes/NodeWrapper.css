@@ -1,0 +1,34 @@
+.nw {
+  position: relative;
+}
+
+.nw-delete {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--red, #c96e6e);
+  border: 2px solid var(--bg);
+  color: #fff;
+  font-size: 10px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  transition: transform 0.1s, background 0.1s;
+  line-height: 1;
+  padding: 0;
+}
+.nw-delete:hover {
+  transform: scale(1.2);
+  background: #e05555;
+}
+
+.nw-selected > .node {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
