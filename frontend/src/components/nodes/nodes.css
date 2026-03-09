@@ -1,0 +1,200 @@
+/* Base node */
+.node {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  overflow: hidden;
+  min-width: 180px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+  transition: border-color 0.15s;
+}
+.node:hover { border-color: var(--border2); }
+.node.selected { border-color: var(--accent) !important; }
+
+.node-drag-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+  cursor: grab;
+  user-select: none;
+}
+.node-drag-bar:active { cursor: grabbing; }
+
+.node-type-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  color: var(--text-faint);
+  letter-spacing: 0.06em;
+}
+.node-filename {
+  font-size: 11px;
+  color: var(--text-dim);
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.node-edit-btn {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  color: var(--text-dim);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+.node-edit-btn:hover { color: var(--accent); background: var(--surface); }
+
+.node-body { padding: 12px; }
+
+/* React Flow handles */
+.rf-handle {
+  width: 8px !important;
+  height: 8px !important;
+  background: var(--accent2) !important;
+  border: 1px solid var(--bg) !important;
+  border-radius: 50% !important;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.node:hover .rf-handle { opacity: 1; }
+
+/* Text node */
+.text-node-ta {
+  width: 100%;
+  min-height: 100px;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  line-height: 1.6;
+  resize: vertical;
+  padding: 0;
+}
+.text-node-ta::placeholder { color: var(--text-faint); }
+
+.text-node-preview {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text);
+  min-height: 40px;
+  cursor: text;
+  max-width: 360px;
+}
+.text-node-preview h1, .text-node-preview h2, .text-node-preview h3 {
+  font-family: 'Playfair Display', serif;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+.text-node-preview p { margin-bottom: 6px; }
+.text-node-preview strong { color: var(--accent); font-weight: 500; }
+.text-node-preview em { font-style: italic; color: var(--text-dim); }
+.text-node-preview code {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  background: var(--surface2);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.node-save-btn {
+  margin-top: 8px;
+  font-size: 11px;
+  padding: 5px 12px;
+}
+
+.empty-hint {
+  color: var(--text-faint);
+  font-size: 12px;
+  font-style: italic;
+}
+.empty-hint.small { font-size: 11px; }
+
+/* Image node */
+.image-node { min-width: 160px; }
+.image-node-img-wrap { line-height: 0; }
+.image-node-img-wrap img {
+  width: 100%;
+  max-height: 400px;
+  object-fit: cover;
+  display: block;
+}
+.image-caption-row {
+  padding: 6px 10px;
+  cursor: text;
+  border-top: 1px solid var(--border);
+}
+.image-caption {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+/* Video node */
+.video-wrap { background: #000; }
+.video-wrap video { max-height: 320px; object-fit: contain; }
+
+/* Group node */
+.group-node {
+  background: color-mix(in srgb, var(--group-color) 6%, var(--surface));
+  border-color: color-mix(in srgb, var(--group-color) 40%, transparent);
+}
+.group-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--group-color) 30%, transparent);
+  flex-wrap: wrap;
+}
+.group-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--group-color);
+  letter-spacing: 0.06em;
+  cursor: text;
+  flex: 1;
+}
+.group-label-input {
+  font-size: 11px;
+  padding: 3px 6px;
+  flex: 1;
+  min-width: 80px;
+}
+.group-color-picker { display: flex; gap: 5px; }
+.color-dot {
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+.color-dot:hover { transform: scale(1.3); }
+
+/* File node */
+.file-node-body {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+}
+.file-icon { font-size: 24px; }
+.file-name {
+  font-size: 12px;
+  color: var(--text);
+  margin-bottom: 4px;
+  word-break: break-all;
+}
+.file-link {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  color: var(--accent);
+  text-decoration: none;
+}
+.file-link:hover { text-decoration: underline; }

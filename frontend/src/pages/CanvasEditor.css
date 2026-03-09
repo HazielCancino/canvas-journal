@@ -1,0 +1,53 @@
+.canvas-editor {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+.canvas-area {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Override React Flow defaults */
+.react-flow__renderer { background: transparent; }
+.react-flow__controls {
+  background: var(--surface) !important;
+  border: 1px solid var(--border2) !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+  bottom: 24px !important;
+  left: 24px !important;
+}
+.react-flow__controls-button {
+  background: transparent !important;
+  border-bottom: 1px solid var(--border) !important;
+  color: var(--text-dim) !important;
+  fill: var(--text-dim) !important;
+}
+.react-flow__controls-button:hover {
+  background: var(--surface2) !important;
+  fill: var(--text) !important;
+}
+.react-flow__controls-button:last-child { border-bottom: none !important; }
+
+.react-flow__edge-path {
+  stroke: var(--accent2) !important;
+  stroke-width: 1.5;
+}
+
+.react-flow__minimap {
+  bottom: 24px !important;
+  right: 24px !important;
+  border-radius: 8px !important;
+  overflow: hidden;
+}
+
+/* Node selection ring */
+.react-flow__node.selected > div {
+  outline: 2px solid var(--accent) !important;
+  outline-offset: 2px;
+}
