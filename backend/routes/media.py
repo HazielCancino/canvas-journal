@@ -1,9 +1,7 @@
 from flask import Blueprint, request, jsonify, send_file, current_app
 from extensions import db
 from models import MediaFile
-import os
-import uuid
-import mimetypes
+import os, uuid, mimetypes
 
 media_bp = Blueprint('media', __name__)
 
@@ -31,7 +29,6 @@ def ensure_upload_dir(board_id):
 def upload_file(board_id):
     if 'file' not in request.files:
         return jsonify({'error': 'No file provided'}), 400
-
     file = request.files['file']
     if not file.filename:
         return jsonify({'error': 'Empty filename'}), 400
@@ -39,26 +36,21 @@ def upload_file(board_id):
     original_name = file.filename
     ext = original_name.rsplit('.', 1)[-1].lower() if '.' in original_name else ''
     unique_name = f"{uuid.uuid4().hex}.{ext}"
-    file_type = get_file_type(original_name)
-    mime_type = mimetypes.guess_type(original_name)[0] or 'application/octet-stream'
+    file_type   = get_file_type(original_name)
+    mime_type   = mimetypes.guess_type(original_name)[0] or 'application/octet-stream'
 
     upload_dir = ensure_upload_dir(board_id)
-    save_path = os.path.join(upload_dir, unique_name)
+    save_path  = os.path.join(upload_dir, unique_name)
     file.save(save_path)
-    file_size = os.path.getsize(save_path)
+    file_size  = os.path.getsize(save_path)
 
     media = MediaFile(
-        board_id=board_id,
-        filename=unique_name,
-        original_name=original_name,
-        file_type=file_type,
-        mime_type=mime_type,
-        file_path=save_path,
-        file_size=file_size,
+        board_id=board_id, filename=unique_name,
+        original_name=original_name, file_type=file_type,
+        mime_type=mime_type, file_path=save_path, file_size=file_size,
     )
     db.session.add(media)
     db.session.commit()
-
     return jsonify(media.to_dict()), 201
 
 
@@ -70,6 +62,14 @@ def serve_file(filename):
         if os.path.isfile(candidate):
             return send_file(candidate)
     return jsonify({'error': 'File not found'}), 404
+
+
+@media_bp.route('/cover/<filename>', methods=['GET'])
+def serve_cover(filename):
+    cover_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'covers', filename)
+    if os.path.isfile(cover_dir):
+        return send_file(cover_dir)
+    return jsonify({'error': 'Cover not found'}), 404
 
 
 @media_bp.route('/board/<int:board_id>', methods=['GET'])

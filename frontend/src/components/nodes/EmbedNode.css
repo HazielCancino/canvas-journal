@@ -1,63 +1,31 @@
 .embed-node {
   border-color: color-mix(in srgb, var(--pm-color) 40%, var(--border2)) !important;
-  min-width: 320px;
+  min-width: 340px;
   overflow: hidden;
 }
-
-/* Platform badge in drag bar */
-.embed-platform-badge {
-  display: flex; align-items: center; gap: 6px;
-}
-.embed-platform-icon {
-  font-size: 13px;
-}
+.embed-platform-badge { display: flex; align-items: center; gap: 6px; }
+.embed-platform-icon  { font-size: 13px; }
 .embed-platform-label {
-  font-family: 'DM Mono', monospace;
-  font-size: 10px;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  opacity: 0.85;
+  font-family: 'DM Mono', monospace; font-size: 10px;
+  letter-spacing: 0.07em; text-transform: uppercase; opacity: 0.85;
 }
 .embed-open-link {
-  color: var(--text-faint);
-  font-size: 12px;
-  text-decoration: none;
-  padding: 2px 4px;
-  border-radius: 3px;
-  transition: color 0.15s;
+  color: var(--text-faint); font-size: 12px; text-decoration: none;
+  padding: 2px 4px; border-radius: 3px; transition: color 0.15s;
 }
 .embed-open-link:hover { color: var(--accent); }
 
-/* iFrame wrapper */
 .embed-iframe-wrap {
-  width: 100%;
-  overflow: hidden;
-  background: #000;
-  line-height: 0;
+  width: 100%; overflow: hidden;
+  background: #0e0d0b; line-height: 0;
+  resize: none;
 }
 
-/* Link preview card */
-.embed-link-card {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-.embed-link-thumb {
-  width: 100%;
-  max-height: 180px;
-  overflow: hidden;
-  line-height: 0;
-}
-.embed-link-thumb img {
-  width: 100%;
-  max-height: 180px;
-  object-fit: cover;
-  display: block;
-}
-.embed-link-info {
-  padding: 12px 14px 14px;
-  display: flex; flex-direction: column; gap: 5px;
-}
+/* ── Generic link preview card ── */
+.embed-link-card { display: flex; flex-direction: column; overflow: hidden; }
+.embed-link-thumb { width: 100%; max-height: 200px; overflow: hidden; line-height: 0; }
+.embed-link-thumb img { width: 100%; max-height: 200px; object-fit: cover; display: block; }
+.embed-link-info { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 5px; }
 .embed-link-domain {
   display: flex; align-items: center; gap: 5px;
   font-family: 'DM Mono', monospace; font-size: 10px;
@@ -68,9 +36,7 @@
   font-family: 'DM Sans', sans-serif; font-size: 13px;
   font-weight: 500; color: var(--text); line-height: 1.4;
 }
-.embed-link-desc {
-  font-size: 11px; color: var(--text-dim); line-height: 1.5;
-}
+.embed-link-desc { font-size: 11px; color: var(--text-dim); line-height: 1.5; }
 .embed-link-open {
   font-family: 'DM Mono', monospace; font-size: 10px;
   color: var(--pm-color); text-decoration: none;
@@ -78,14 +44,20 @@
 }
 .embed-link-open:hover { text-decoration: underline; }
 
-/* Loading dots */
+/* ── Error state ── */
+.embed-error {
+  padding: 20px; display: flex; flex-direction: column;
+  align-items: center; gap: 10px; text-align: center;
+  font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text-faint);
+}
+
+/* ── Loading dots ── */
 .embed-loading {
-  padding: 20px;
-  display: flex; align-items: center; justify-content: center; gap: 5px;
+  padding: 24px; display: flex;
+  align-items: center; justify-content: center; gap: 5px;
 }
 .embed-loading-dot {
   width: 6px; height: 6px; border-radius: 50%;
-  background: var(--text-faint);
   animation: embedPulse 1.2s ease-in-out infinite;
 }
 .embed-loading-dot:nth-child(2) { animation-delay: 0.2s; }

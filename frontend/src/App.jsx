@@ -14,7 +14,7 @@ export default function App() {
         <CanvasEditor boardId={currentBoard} onBack={() => setCurrentBoard(null)} />
       ) : (
         <BoardList
-          onOpenBoard={setCurrentBoard}
+          onOpen={setCurrentBoard}
           themeKey={themeKey}
           setThemeKey={setThemeKey}
         />
