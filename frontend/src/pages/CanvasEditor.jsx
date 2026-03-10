@@ -8,16 +8,16 @@ import {
 import '@xyflow/react/dist/style.css'
 
 import { boardsApi, mediaApi } from '../api'
-import Toolbar        from '../components/Toolbar'
-import ContextMenu    from '../components/ContextMenu'
-import BoardSettings  from '../components/BoardSettings'
-import SelectionBar   from '../components/SelectionBar'
-import TextNode       from '../components/nodes/TextNode'
-import ImageNode      from '../components/nodes/ImageNode'
-import VideoNode      from '../components/nodes/VideoNode'
-import GroupBoxNode   from '../components/nodes/GroupBoxNode'
-import FileNode       from '../components/nodes/FileNode'
-import EmbedNode      from '../components/nodes/EmbedNode'
+import Toolbar       from '../components/Toolbar'
+import ContextMenu   from '../components/ContextMenu'
+import BoardSettings from '../components/BoardSettings'
+import SelectionBar  from '../components/SelectionBar'
+import TextNode      from '../components/nodes/TextNode'
+import ImageNode     from '../components/nodes/ImageNode'
+import VideoNode     from '../components/nodes/VideoNode'
+import GroupBoxNode  from '../components/nodes/GroupBoxNode'
+import FileNode      from '../components/nodes/FileNode'
+import EmbedNode     from '../components/nodes/EmbedNode'
 import { reparentNodes } from '../groupUtils'
 import './CanvasEditor.css'
 
@@ -51,6 +51,12 @@ function isUrl(str) {
   try { new URL(str.startsWith('http') ? str : `https://${str}`); return str.includes('.') } catch { return false }
 }
 
+// ── Clean nodes for history/save (strip runtime functions) ───────────────────
+function cleanNodes(ns) {
+  return ns.map(({ data: { _update, _delete, _boardSettings, ...rest }, ...n }) => ({ ...n, data: rest }))
+}
+
+// ── Inner canvas component ───────────────────────────────────────────────────
 function CanvasInner({ boardId, onBack }) {
   const [board, setBoard]                  = useState(null)
   const [nodes, setNodes, onNodesChange]   = useNodesState([])
@@ -67,17 +73,39 @@ function CanvasInner({ boardId, onBack }) {
   const ctxFileRef = useRef()
   const ctxPosRef  = useRef(null)
 
+  // ── Undo history ──────────────────────────────────────────────────────────
+  const historyRef  = useRef([])   // array of { nodes: clean[], edges: [] }
+  const historyIdx  = useRef(-1)
+  const isUndoing   = useRef(false)
+  // Live refs so callbacks always have fresh state without stale closure issues
+  const nodesRef    = useRef([])
+  const edgesRef    = useRef([])
+  useEffect(() => { nodesRef.current = nodes }, [nodes])
+  useEffect(() => { edgesRef.current = edges }, [edges])
+
+  const pushHistory = useCallback((snapNs, snapEs) => {
+    if (isUndoing.current) return
+    // Truncate any redo future
+    historyRef.current.length = historyIdx.current + 1
+    historyRef.current.push({
+      nodes: JSON.parse(JSON.stringify(cleanNodes(snapNs))),
+      edges: JSON.parse(JSON.stringify(snapEs)),
+    })
+    // Cap at 60 steps
+    if (historyRef.current.length > 60) historyRef.current.shift()
+    historyIdx.current = historyRef.current.length - 1
+  }, [])
+
   const { screenToFlowPosition, fitView, setCenter, getNode } = useReactFlow()
 
-  /* ── track selection ── */
+  // ── Selection tracking ────────────────────────────────────────────────────
   useOnSelectionChange({
     onChange: ({ nodes: sn }) => setSelectedIds(sn.map(n => n.id)),
   })
-
   const allLocked = selectedIds.length > 0 &&
     selectedIds.every(id => nodes.find(n => n.id === id)?.draggable === false)
 
-  /* ── helpers ── */
+  // ── Node helpers ──────────────────────────────────────────────────────────
   const updateNodeData = useCallback((id, patch) => {
     setNodes(ns => ns.map(n => n.id === id ? { ...n, data: { ...n.data, ...patch } } : n))
   }, [])
@@ -91,7 +119,7 @@ function CanvasInner({ boardId, onBack }) {
     },
   }), [updateNodeData])
 
-  /* ── inject board settings into video nodes ── */
+  // ── Inject board settings into video nodes ────────────────────────────────
   useEffect(() => {
     setNodes(ns => ns.map(n =>
       n.type === 'videoNote'
@@ -100,71 +128,140 @@ function CanvasInner({ boardId, onBack }) {
     ))
   }, [boardSettings.loopVideos, boardSettings.autoplayVideos])
 
-  /* ── reset zoom trigger ── */
   useEffect(() => {
     if (boardSettings.resetZoom) fitView({ duration: 400 })
   }, [boardSettings.resetZoom])
 
-  /* ── load ── */
+  // ── Load board ────────────────────────────────────────────────────────────
   useEffect(() => {
     boardsApi.get(boardId).then(r => {
       setBoard(r.data)
       const s = r.data.canvas_state || {}
-      setNodes((s.nodes || []).map(attachUpdater))
-      setEdges(s.edges || [])
-      if (s.bgConfig)       setBgConfig(s.bgConfig)
-      if (s.boardSettings)  setBoardSettings({ ...DEFAULT_SETTINGS, ...s.boardSettings })
+      const loadedNodes = (s.nodes || []).map(attachUpdater)
+      const loadedEdges = s.edges || []
+      setNodes(loadedNodes)
+      setEdges(loadedEdges)
+      if (s.bgConfig)      setBgConfig(s.bgConfig)
+      if (s.boardSettings) setBoardSettings({ ...DEFAULT_SETTINGS, ...s.boardSettings })
+      // Seed history with the loaded state
+      setTimeout(() => {
+        historyRef.current = [{ nodes: JSON.parse(JSON.stringify(s.nodes||[])), edges: JSON.parse(JSON.stringify(loadedEdges)) }]
+        historyIdx.current = 0
+      }, 100)
     }).catch(console.error)
   }, [boardId])
 
-  /* ── save ── */
+  // ── Auto-save ─────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!board) return
     clearTimeout(saveTimer.current)
     saveTimer.current = setTimeout(async () => {
       setSaving(true)
       try {
-        const clean = nodes.map(({ data: { _update, _delete, _boardSettings, ...rest }, ...n }) => ({ ...n, data: rest }))
-        await boardsApi.save(boardId, { nodes: clean, edges, bgConfig, boardSettings, viewport: { x: 0, y: 0, zoom: 1 } })
+        await boardsApi.save(boardId, {
+          nodes: cleanNodes(nodes),
+          edges, bgConfig, boardSettings,
+          viewport: { x: 0, y: 0, zoom: 1 },
+        })
         setLastSaved(new Date())
       } catch(e) { console.error(e) }
       finally { setSaving(false) }
     }, 1500)
   }, [nodes, edges, bgConfig, boardSettings, board])
 
-  /* ── add node ── */
+  // ── Ctrl+Z undo ───────────────────────────────────────────────────────────
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      // Don't intercept Ctrl+Z while user is typing in a text input / textarea
+      const tag = document.activeElement?.tagName?.toLowerCase()
+      const ce  = document.activeElement?.contentEditable
+      if (tag === 'input' || tag === 'textarea' || ce === 'true') return
+
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault()
+        if (historyIdx.current <= 0) return
+        historyIdx.current -= 1
+        const snap = historyRef.current[historyIdx.current]
+        if (!snap) return
+        isUndoing.current = true
+        setNodes(snap.nodes.map(attachUpdater))
+        setEdges(snap.edges)
+        setTimeout(() => { isUndoing.current = false }, 50)
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [attachUpdater])
+
+  // ── Add node ──────────────────────────────────────────────────────────────
   const addNode = useCallback((type, data = {}, screenPos = null) => {
     const sp = screenPos || { x: window.innerWidth / 2, y: window.innerHeight / 2 }
     const fp = screenToFlowPosition(sp)
     const id = uid()
-    // Apply default note color when adding a text note
     const extraData = {}
     if (type === 'videoNote') extraData._boardSettings = boardSettings
     if (type === 'textNote' && boardSettings.defaultNoteColor && boardSettings.defaultNoteColor !== 'Default') {
       extraData.colorLabel = boardSettings.defaultNoteColor
     }
-    setNodes(ns => [...ns, {
+    const newNode = {
       id, type,
       position: { x: fp.x - 110, y: fp.y - 60 },
       ...(type === 'groupBox' ? { style: { zIndex: -1 } } : {}),
       data: {
-        ...data,
-        ...extraData,
+        ...data, ...extraData,
         _update: (patch) => updateNodeData(id, patch),
         _delete: () => setNodes(prev => prev.filter(n => n.id !== id)),
       },
-    }])
+    }
+    setNodes(ns => {
+      const next = [...ns, newNode]
+      pushHistory(next, edgesRef.current)
+      return next
+    })
     setCtxMenu(null)
-  }, [screenToFlowPosition, updateNodeData, boardSettings])
+  }, [screenToFlowPosition, updateNodeData, boardSettings, pushHistory])
 
-  /* ── upload ── */
+  // ── File upload (with text/doc interception) ──────────────────────────────
   const handleUpload = useCallback(async (files, screenPos = null) => {
     for (const file of files) {
+      const sp = screenPos
+        ? { x: screenPos.x + Math.random()*40-20, y: screenPos.y + Math.random()*40-20 }
+        : null
+      const name = file.name || ''
+
+      // .txt and .md → text node
+      if (name.endsWith('.txt') || name.endsWith('.md')) {
+        try {
+          const text = await new Promise((res, rej) => {
+            const reader = new FileReader()
+            reader.onload  = e => res(e.target.result)
+            reader.onerror = rej
+            reader.readAsText(file)
+          })
+          const title = name.replace(/\.(txt|md)$/, '')
+          addNode('textNote', { title, text }, sp)
+          continue
+        } catch(e) { console.error('Text read failed', e) }
+      }
+
+      // .docx → mammoth → text node
+      if (name.endsWith('.docx')) {
+        try {
+          const mammoth      = await import('mammoth')
+          const arrayBuffer  = await file.arrayBuffer()
+          const result       = await mammoth.convertToMarkdown({ arrayBuffer })
+          const title        = name.replace(/\.docx$/, '')
+          addNode('textNote', { title, text: result.value }, sp)
+          continue
+        } catch(e) {
+          console.error('mammoth failed (run: npm install mammoth)', e)
+          // fall through to regular upload
+        }
+      }
+
+      // Everything else → regular backend upload
       try {
         const { data: m } = await mediaApi.upload(boardId, file)
-        const sp = screenPos
-          ? { x: screenPos.x + Math.random()*40-20, y: screenPos.y + Math.random()*40-20 }
-          : null
         if      (m.file_type === 'image') addNode('imageNote', { src: mediaApi.url(m.filename), originalName: m.original_name }, sp)
         else if (m.file_type === 'video') addNode('videoNote', { src: mediaApi.url(m.filename), originalName: m.original_name }, sp)
         else                              addNode('fileNote',  { url: mediaApi.url(m.filename), originalName: m.original_name, fileType: m.file_type }, sp)
@@ -172,19 +269,18 @@ function CanvasInner({ boardId, onBack }) {
     }
   }, [boardId, addNode])
 
-  /* ── context menu upload ── */
+  // ── Context menu file upload ──────────────────────────────────────────────
   const openCtxFileDialog = useCallback((pos) => {
     ctxPosRef.current = pos; setCtxMenu(null)
     setTimeout(() => ctxFileRef.current?.click(), 50)
   }, [])
-
   const onCtxFileChange = useCallback((e) => {
     const files = Array.from(e.target.files)
     if (files.length) handleUpload(files, ctxPosRef.current)
     e.target.value = ''
   }, [handleUpload])
 
-  /* ── paste ── */
+  // ── Paste ─────────────────────────────────────────────────────────────────
   useEffect(() => {
     const onPaste = (e) => {
       const tag = document.activeElement?.tagName?.toLowerCase()
@@ -199,19 +295,23 @@ function CanvasInner({ boardId, onBack }) {
     return () => window.removeEventListener('paste', onPaste)
   }, [addNode, handleUpload])
 
-  /* ── drag & drop ── */
+  // ── Drag & drop ───────────────────────────────────────────────────────────
   const onDrop = useCallback((e) => {
     e.preventDefault()
     const files = Array.from(e.dataTransfer.files)
     if (files.length) handleUpload(files, { x: e.clientX, y: e.clientY })
   }, [handleUpload])
 
-  /* ── group parenting ── */
+  // ── Group parenting ───────────────────────────────────────────────────────
   const onNodeDragStop = useCallback((_, draggedNode) => {
-    setNodes(ns => reparentNodes(draggedNode, ns))
-  }, [])
+    setNodes(ns => {
+      const next = reparentNodes(draggedNode, ns)
+      pushHistory(next, edgesRef.current)
+      return next
+    })
+  }, [pushHistory])
 
-  /* ── focus a node ── */
+  // ── Focus a node ─────────────────────────────────────────────────────────
   const focusNode = useCallback((id) => {
     const n = getNode(id)
     if (!n) return
@@ -220,7 +320,7 @@ function CanvasInner({ boardId, onBack }) {
     setCenter(cx, cy, { zoom: 0.9, duration: 500 })
   }, [getNode, setCenter])
 
-  /* ── selection: group ── */
+  // ── Selection actions ─────────────────────────────────────────────────────
   const groupSelected = useCallback(() => {
     if (selectedIds.length < 2) return
     const sel = nodes.filter(n => selectedIds.includes(n.id))
@@ -231,30 +331,39 @@ function CanvasInner({ boardId, onBack }) {
     const x2  = Math.max(...xs.map((x, i) => x + (sel[i].measured?.width  || 200))) + 20
     const y2  = Math.max(...ys.map((y, i) => y + (sel[i].measured?.height || 100))) + 20
     const id  = uid()
-    setNodes(ns => [
-      {
-        id, type: 'groupBox',
-        position: { x: x1, y: y1 },
-        style: { zIndex: -1 },
-        width: x2 - x1, height: y2 - y1,
-        data: {
-          label: 'Group', color: '#c9a96e',
-          _update: (patch) => updateNodeData(id, patch),
-          _delete: () => setNodes(prev => prev.filter(n => n.id !== id)),
+    setNodes(ns => {
+      const next = [
+        {
+          id, type: 'groupBox',
+          position: { x: x1, y: y1 },
+          style: { zIndex: -1 },
+          width: x2-x1, height: y2-y1,
+          data: {
+            label: 'Group', color: '#c9a96e',
+            _update: (patch) => updateNodeData(id, patch),
+            _delete: () => setNodes(prev => prev.filter(n => n.id !== id)),
+          },
         },
-      },
-      ...ns,
-    ])
-  }, [selectedIds, nodes, updateNodeData])
+        ...ns,
+      ]
+      pushHistory(next, edgesRef.current)
+      return next
+    })
+  }, [selectedIds, nodes, updateNodeData, pushHistory])
 
-  /* ── selection: delete ── */
   const deleteSelected = useCallback(() => {
-    setNodes(ns => ns.filter(n => !selectedIds.includes(n.id)))
-    setEdges(es => es.filter(e => !selectedIds.includes(e.source) && !selectedIds.includes(e.target)))
+    const newEdges = edgesRef.current.filter(e =>
+      !selectedIds.includes(e.source) && !selectedIds.includes(e.target)
+    )
+    setNodes(ns => {
+      const next = ns.filter(n => !selectedIds.includes(n.id))
+      pushHistory(next, newEdges)
+      return next
+    })
+    setEdges(newEdges)
     setSelectedIds([])
-  }, [selectedIds])
+  }, [selectedIds, pushHistory])
 
-  /* ── selection: duplicate ── */
   const duplicateSelected = useCallback(() => {
     const sel = nodes.filter(n => selectedIds.includes(n.id))
     const newNodes = sel.map(n => {
@@ -269,12 +378,15 @@ function CanvasInner({ boardId, onBack }) {
         },
       }
     })
-    setNodes(ns => [...ns, ...newNodes])
-  }, [selectedIds, nodes, updateNodeData])
+    setNodes(ns => {
+      const next = [...ns, ...newNodes]
+      pushHistory(next, edgesRef.current)
+      return next
+    })
+  }, [selectedIds, nodes, updateNodeData, pushHistory])
 
-  /* ── selection: lock / unlock ── */
   const toggleLockSelected = useCallback(() => {
-    const newDraggable = allLocked  // if all locked, unlock; else lock
+    const newDraggable = allLocked
     setNodes(ns => ns.map(n =>
       selectedIds.includes(n.id)
         ? { ...n, draggable: newDraggable, connectable: newDraggable, selectable: true }
@@ -282,17 +394,25 @@ function CanvasInner({ boardId, onBack }) {
     ))
   }, [selectedIds, allLocked])
 
-  /* ── deselect ── */
   const deselectAll = useCallback(() => {
     setNodes(ns => ns.map(n => ({ ...n, selected: false })))
     setSelectedIds([])
   }, [])
 
-  /* ── right click ── */
+  // ── Right-click ───────────────────────────────────────────────────────────
   const onPaneContextMenu = useCallback((e) => {
     e.preventDefault()
     setCtxMenu({ x: e.clientX, y: e.clientY })
   }, [])
+
+  // ── Edge connect with history ─────────────────────────────────────────────
+  const onConnect = useCallback((p) => {
+    setEdges(es => {
+      const next = addEdge({ ...p, type: 'smoothstep' }, es)
+      pushHistory(nodesRef.current, next)
+      return next
+    })
+  }, [pushHistory])
 
   const pattern      = bgConfig?.pattern || 'dots'
   const patternColor = bgConfig?.patternColor || '#2a2720'
@@ -320,7 +440,7 @@ function CanvasInner({ boardId, onBack }) {
           nodes={nodes} edges={edges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
-          onConnect={useCallback((p) => setEdges(es => addEdge({ ...p, type: 'smoothstep' }, es)), [])}
+          onConnect={onConnect}
           onNodeDragStop={onNodeDragStop}
           nodeTypes={nodeTypes}
           onPaneContextMenu={onPaneContextMenu}
@@ -365,8 +485,12 @@ function CanvasInner({ boardId, onBack }) {
           />
         )}
 
-        <input ref={ctxFileRef} type="file" multiple accept="image/*,video/*,.gif,.pdf,.txt,.md"
-          style={{ display: 'none' }} onChange={onCtxFileChange} />
+        <input
+          ref={ctxFileRef} type="file" multiple
+          accept="image/*,video/*,.gif,.pdf,.txt,.md,.docx"
+          style={{ display: 'none' }}
+          onChange={onCtxFileChange}
+        />
       </div>
 
       <BoardSettings

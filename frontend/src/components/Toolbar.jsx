@@ -28,11 +28,11 @@ export default function Toolbar({
       </div>
 
       <div className="toolbar-center">
-        <button className="btn ghost toolbar-tool" onClick={onAddText} title="Add text note">
-          <span className="tool-icon">T</span>
-          <span className="tool-label">Text</span>
+        <button className="btn ghost toolbar-tool" onClick={onAddText} title="Add text note (writer mode)">
+          <span className="tool-icon">✎</span>
+          <span className="tool-label">Write</span>
         </button>
-        <button className="btn ghost toolbar-tool" onClick={() => fileRef.current?.click()} title="Upload media">
+        <button className="btn ghost toolbar-tool" onClick={() => fileRef.current?.click()} title="Upload media or drop a .txt/.md/.docx to import">
           <span className="tool-icon">⬆</span>
           <span className="tool-label">Media</span>
         </button>
@@ -45,9 +45,10 @@ export default function Toolbar({
 
         <CanvasBackground boardId={boardId} bgConfig={bgConfig} onChange={onBgChange} />
 
+        {/* Accept text/doc formats in addition to media */}
         <input
           ref={fileRef} type="file" multiple style={{ display: 'none' }}
-          accept="image/*,video/*,.gif,.pdf,.txt,.md"
+          accept="image/*,video/*,.gif,.pdf,.txt,.md,.docx"
           onChange={handleFileChange}
         />
       </div>
