@@ -52,7 +52,7 @@ function isUrl(str) {
 }
 
 function cleanNodes(ns) {
-  return ns.map(({ data: { _update, _delete, _boardSettings, ...rest }, ...n }) => ({ ...n, data: rest }))
+  return ns.map(({ data: { _update, _delete, _boardSettings, _openFocusMode, _triggerRename, ...rest }, ...n }) => ({ ...n, data: rest }))
 }
 
 function CanvasInner({ boardId, onBack }) {
@@ -73,7 +73,6 @@ function CanvasInner({ boardId, onBack }) {
   const nodesRef   = useRef([])
   const edgesRef   = useRef([])
 
-  // Undo history
   const historyRef = useRef([])
   const historyIdx = useRef(-1)
   const isUndoing  = useRef(false)
@@ -83,7 +82,6 @@ function CanvasInner({ boardId, onBack }) {
 
   const { screenToFlowPosition, fitView, setCenter, getNode } = useReactFlow()
 
-  // Track selection
   useOnSelectionChange({
     onChange: ({ nodes: sn }) => setSelectedIds(sn.map(n => n.id)),
   })
@@ -91,7 +89,6 @@ function CanvasInner({ boardId, onBack }) {
   const allLocked = selectedIds.length > 0 &&
     selectedIds.every(id => nodes.find(n => n.id === id)?.draggable === false)
 
-  // Helpers
   const updateNodeData = useCallback((id, patch) => {
     setNodes(ns => ns.map(n => n.id === id ? { ...n, data: { ...n.data, ...patch } } : n))
   }, [])
@@ -100,8 +97,10 @@ function CanvasInner({ boardId, onBack }) {
     ...node,
     data: {
       ...node.data,
-      _update: (patch) => updateNodeData(node.id, patch),
-      _delete: () => setNodes(ns => ns.filter(n => n.id !== node.id)),
+      _update:        (patch) => updateNodeData(node.id, patch),
+      _delete:        () => setNodes(ns => ns.filter(n => n.id !== node.id)),
+      _openFocusMode: () => updateNodeData(node.id, { _focusTrigger: Date.now() }),
+      _triggerRename: () => updateNodeData(node.id, { _renameTrigger: Date.now() }),
     },
   }), [updateNodeData])
 
@@ -116,7 +115,6 @@ function CanvasInner({ boardId, onBack }) {
     historyIdx.current = historyRef.current.length - 1
   }, [])
 
-  // Video settings injection
   useEffect(() => {
     setNodes(ns => ns.map(n =>
       n.type === 'videoNote' ? { ...n, data: { ...n.data, _boardSettings: boardSettings } } : n
@@ -127,7 +125,6 @@ function CanvasInner({ boardId, onBack }) {
     if (boardSettings.resetZoom) fitView({ duration: 400 })
   }, [boardSettings.resetZoom])
 
-  // Load
   useEffect(() => {
     boardsApi.get(boardId).then(r => {
       setBoard(r.data)
@@ -145,7 +142,6 @@ function CanvasInner({ boardId, onBack }) {
     }).catch(console.error)
   }, [boardId])
 
-  // Save
   useEffect(() => {
     if (!board) return
     clearTimeout(saveTimer.current)
@@ -162,13 +158,11 @@ function CanvasInner({ boardId, onBack }) {
     }, 1500)
   }, [nodes, edges, bgConfig, boardSettings, board])
 
-  // Ctrl+Z undo
   useEffect(() => {
     const onKeyDown = (e) => {
       const tag = document.activeElement?.tagName?.toLowerCase()
       const ce  = document.activeElement?.contentEditable
       if (tag === 'input' || tag === 'textarea' || ce === 'true') return
-      // Esc deselects
       if (e.key === 'Escape') {
         setNodes(ns => ns.map(n => ({ ...n, selected: false })))
         setSelectedIds([])
@@ -190,7 +184,6 @@ function CanvasInner({ boardId, onBack }) {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [attachUpdater])
 
-  // Add node
   const addNode = useCallback((type, data = {}, screenPos = null) => {
     const sp = screenPos || { x: window.innerWidth / 2, y: window.innerHeight / 2 }
     const fp = screenToFlowPosition(sp)
@@ -206,8 +199,10 @@ function CanvasInner({ boardId, onBack }) {
       ...(type === 'groupBox' ? { style: { zIndex: -1 } } : {}),
       data: {
         ...data, ...extraData,
-        _update: (patch) => updateNodeData(id, patch),
-        _delete: () => setNodes(prev => prev.filter(n => n.id !== id)),
+        _update:        (patch) => updateNodeData(id, patch),
+        _delete:        () => setNodes(prev => prev.filter(n => n.id !== id)),
+        _openFocusMode: () => updateNodeData(id, { _focusTrigger: Date.now() }),
+        _triggerRename: () => updateNodeData(id, { _renameTrigger: Date.now() }),
       },
     }
     setNodes(ns => {
@@ -218,7 +213,6 @@ function CanvasInner({ boardId, onBack }) {
     setCtxMenu(null)
   }, [screenToFlowPosition, updateNodeData, boardSettings, pushHistory])
 
-  // Upload (with text/docx interception)
   const handleUpload = useCallback(async (files, screenPos = null) => {
     for (const file of files) {
       const sp = screenPos
@@ -255,18 +249,17 @@ function CanvasInner({ boardId, onBack }) {
     }
   }, [boardId, addNode])
 
-  // Context menu upload
   const openCtxFileDialog = useCallback((pos) => {
     ctxPosRef.current = pos; setCtxMenu(null)
     setTimeout(() => ctxFileRef.current?.click(), 50)
   }, [])
+
   const onCtxFileChange = useCallback((e) => {
     const files = Array.from(e.target.files)
     if (files.length) handleUpload(files, ctxPosRef.current)
     e.target.value = ''
   }, [handleUpload])
 
-  // Paste
   useEffect(() => {
     const onPaste = (e) => {
       const tag = document.activeElement?.tagName?.toLowerCase()
@@ -281,14 +274,12 @@ function CanvasInner({ boardId, onBack }) {
     return () => window.removeEventListener('paste', onPaste)
   }, [addNode, handleUpload])
 
-  // Drag & drop
   const onDrop = useCallback((e) => {
     e.preventDefault()
     const files = Array.from(e.dataTransfer.files)
     if (files.length) handleUpload(files, { x: e.clientX, y: e.clientY })
   }, [handleUpload])
 
-  // Group parenting
   const onNodeDragStop = useCallback((_, draggedNode) => {
     setNodes(ns => {
       const next = reparentNodes(draggedNode, ns)
@@ -297,7 +288,6 @@ function CanvasInner({ boardId, onBack }) {
     })
   }, [pushHistory])
 
-  // Focus node from settings
   const focusNode = useCallback((id) => {
     const n = getNode(id)
     if (!n) return
@@ -308,7 +298,6 @@ function CanvasInner({ boardId, onBack }) {
     )
   }, [getNode, setCenter])
 
-  // Selection: group
   const groupSelected = useCallback(() => {
     if (selectedIds.length < 2) return
     const sel = nodes.filter(n => selectedIds.includes(n.id))
@@ -328,8 +317,10 @@ function CanvasInner({ boardId, onBack }) {
           width: x2-x1, height: y2-y1,
           data: {
             label: 'Group', color: '#c9a96e',
-            _update: (patch) => updateNodeData(id, patch),
-            _delete: () => setNodes(prev => prev.filter(n => n.id !== id)),
+            _update:        (patch) => updateNodeData(id, patch),
+            _delete:        () => setNodes(prev => prev.filter(n => n.id !== id)),
+            _openFocusMode: () => {},
+            _triggerRename: () => updateNodeData(id, { _renameTrigger: Date.now() }),
           },
         },
         ...ns,
@@ -339,7 +330,6 @@ function CanvasInner({ boardId, onBack }) {
     })
   }, [selectedIds, nodes, updateNodeData, pushHistory])
 
-  // Selection: delete
   const deleteSelected = useCallback(() => {
     const newEdges = edgesRef.current.filter(e =>
       !selectedIds.includes(e.source) && !selectedIds.includes(e.target)
@@ -353,7 +343,6 @@ function CanvasInner({ boardId, onBack }) {
     setSelectedIds([])
   }, [selectedIds, pushHistory])
 
-  // Selection: duplicate
   const duplicateSelected = useCallback(() => {
     const sel = nodes.filter(n => selectedIds.includes(n.id))
     const newNodes = sel.map(n => {
@@ -363,8 +352,10 @@ function CanvasInner({ boardId, onBack }) {
         position: { x: n.position.x + 30, y: n.position.y + 30 },
         data: {
           ...n.data,
-          _update: (patch) => updateNodeData(id, patch),
-          _delete: () => setNodes(prev => prev.filter(x => x.id !== id)),
+          _update:        (patch) => updateNodeData(id, patch),
+          _delete:        () => setNodes(prev => prev.filter(x => x.id !== id)),
+          _openFocusMode: () => updateNodeData(id, { _focusTrigger: Date.now() }),
+          _triggerRename: () => updateNodeData(id, { _renameTrigger: Date.now() }),
         },
       }
     })
@@ -375,7 +366,6 @@ function CanvasInner({ boardId, onBack }) {
     })
   }, [selectedIds, nodes, updateNodeData, pushHistory])
 
-  // Selection: lock / unlock
   const toggleLockSelected = useCallback(() => {
     setNodes(ns => ns.map(n =>
       selectedIds.includes(n.id)
@@ -384,13 +374,11 @@ function CanvasInner({ boardId, onBack }) {
     ))
   }, [selectedIds, allLocked])
 
-  // Selection: deselect
   const deselectAll = useCallback(() => {
     setNodes(ns => ns.map(n => ({ ...n, selected: false })))
     setSelectedIds([])
   }, [])
 
-  // Edge connect
   const onConnect = useCallback((p) => {
     setEdges(es => {
       const next = addEdge({ ...p, type: 'smoothstep' }, es)
@@ -437,8 +425,8 @@ function CanvasInner({ boardId, onBack }) {
           onPaneClick={() => setCtxMenu(null)}
           fitView minZoom={0.05} maxZoom={4}
           deleteKeyCode="Delete"
-          multiSelectionKeyCode="Shift"   /* Shift+click to multi-select (Alt conflicts with Windows menu bar) */
-          selectionOnDrag                 /* drag on empty canvas to rubber-band select */
+          multiSelectionKeyCode="Shift"
+          selectionOnDrag
           proOptions={{ hideAttribution: true }}
           snapToGrid={boardSettings.snapToGrid}
           snapGrid={[16, 16]}

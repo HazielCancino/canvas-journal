@@ -194,3 +194,148 @@
   font-family: 'DM Mono', monospace; font-size: 10px;
   color: var(--text-faint); letter-spacing: .04em;
 }
+
+/* ── Append these rules to the BOTTOM of your existing TextNode.css ─────────── */
+
+/* ── Starred state ───────────────────────────────────────────────────────────── */
+.text-node.starred {
+  box-shadow: 0 0 0 1px rgba(201, 169, 110, 0.25),
+              0 4px 20px rgba(201, 169, 110, 0.12) !important;
+}
+
+.star-badge {
+  font-size: 10px;
+  line-height: 1;
+  opacity: 0.9;
+}
+
+.text-bar-btn.star-btn {
+  opacity: 0.35;
+  transition: opacity .15s, transform .15s;
+  font-size: 12px;
+  padding: 1px 3px;
+}
+.text-bar-btn.star-btn:hover { opacity: 0.7; transform: scale(1.15); }
+.text-bar-btn.star-btn.active { opacity: 1; }
+
+/* ── Task / checkbox items ───────────────────────────────────────────────────── */
+.task-item {
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 6px !important;
+  list-style: none !important;
+  margin-left: -4px;
+}
+
+.task-cb {
+  flex-shrink: 0;
+  font-size: 15px;
+  line-height: 1.3;
+  cursor: pointer;
+  user-select: none;
+  transition: opacity .1s, transform .1s;
+  color: var(--text2);
+}
+.task-cb:hover { opacity: 0.7; transform: scale(1.1); }
+.task-cb.checked { color: var(--accent2); }
+
+.task-done-text {
+  text-decoration: line-through;
+  opacity: 0.45;
+}
+
+/* Remove default list styles from the ul that wraps task items */
+.text-node-preview ul:has(.task-item),
+.text-focus-ta ~ * ul:has(.task-item) {
+  padding-left: 4px;
+  list-style: none;
+}
+
+/* ── Word goal ───────────────────────────────────────────────────────────────── */
+.goal-set-btn {
+  background: none;
+  border: 1px dashed var(--border2);
+  border-radius: 4px;
+  color: var(--text3, var(--text2));
+  font-size: 10px;
+  padding: 1px 6px;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: opacity .15s, border-color .15s;
+  white-space: nowrap;
+}
+.goal-set-btn:hover { opacity: 0.9; border-color: var(--accent2); }
+
+.goal-input-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.goal-input {
+  width: 72px;
+  font-size: 11px;
+  padding: 2px 5px;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 4px;
+  color: var(--text);
+  outline: none;
+}
+.goal-input:focus { border-color: var(--accent2); }
+
+/* Hide number input spinners */
+.goal-input::-webkit-outer-spin-button,
+.goal-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.goal-input[type=number] { -moz-appearance: textfield; }
+
+.goal-clear-btn {
+  background: none;
+  border: none;
+  color: var(--text2);
+  font-size: 10px;
+  cursor: pointer;
+  padding: 1px 3px;
+  opacity: 0.5;
+}
+.goal-clear-btn:hover { opacity: 1; color: #e07070; }
+
+.goal-bar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  min-width: 80px;
+  max-width: 130px;
+}
+.goal-bar-wrap:hover .goal-bar-track { border-color: var(--accent2); }
+
+.goal-bar-track {
+  flex: 1;
+  height: 4px;
+  background: var(--border1);
+  border-radius: 2px;
+  border: 1px solid var(--border2);
+  overflow: hidden;
+}
+
+.goal-bar-fill {
+  height: 100%;
+  background: var(--accent2);
+  border-radius: 2px;
+  transition: width .4s ease;
+}
+
+.goal-bar-wrap.done .goal-bar-fill { background: #6ec98a; }
+
+.goal-bar-label {
+  font-size: 10px;
+  color: var(--text2);
+  white-space: nowrap;
+  font-family: 'DM Mono', monospace;
+  flex-shrink: 0;
+}
+.goal-bar-wrap.done .goal-bar-label { color: #6ec98a; font-size: 13px; }
+
+/* ── Fmt toolbar: task button ────────────────────────────────────────────────── */
+.fmt-btn[title*="Task"] { letter-spacing: 0; }
