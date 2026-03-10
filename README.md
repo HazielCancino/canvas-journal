@@ -8,7 +8,7 @@ Built with React + Flask + MySQL.
 
 ---
 
-![FLOW UI]![Canvas Journal Demo](docs/screenshots/UI-TEST.mp4)
+![FLOW UI](docs/screenshots/UI-TEST.gif)
 
 ## Features
 
