@@ -7,9 +7,8 @@ Built with React + Flask + MySQL.
 ![Canvas Journal](https://img.shields.io/badge/stack-React%20%2B%20Flask%20%2B%20MySQL-c9a96e?style=flat-square)
 
 ---
-.
 
-![FLOW UI](docs/screenshots/UI-TEST.MP4)
+![FLOW UI]![Canvas Journal Demo](docs/screenshots/UI-TEST.mp4)
 
 ## Features
 
