@@ -250,7 +250,6 @@
   padding-left: 4px;
   list-style: none;
 }
-
 /* ── Word goal ───────────────────────────────────────────────────────────────── */
 .goal-set-btn {
   background: none;
@@ -284,10 +283,17 @@
 }
 .goal-input:focus { border-color: var(--accent2); }
 
-/* Hide number input spinners */
+/* Hide number input spinners - CORREGIDO */
 .goal-input::-webkit-outer-spin-button,
-.goal-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-.goal-input[type=number] { -moz-appearance: textfield; }
+.goal-input::-webkit-inner-spin-button { 
+  -webkit-appearance: none; 
+  appearance: none;  /* Propiedad estándar añadida */
+  margin: 0; 
+}
+.goal-input[type=number] { 
+  -moz-appearance: textfield; 
+  appearance: textfield;  /* Propiedad estándar añadida */
+}
 
 .goal-clear-btn {
   background: none;
