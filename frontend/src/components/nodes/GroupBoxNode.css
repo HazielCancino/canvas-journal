@@ -1,0 +1,71 @@
+.group-node {
+  /* Fill the RF shell exactly like every other node */
+  width: 100%;
+  height: 100%;
+  min-width: 120px;
+  min-height: 80px;
+
+  /* Transparent interior — children inside are visible on top */
+  background: color-mix(in srgb, var(--group-color, #c9a96e) 6%, transparent) !important;
+  border: 2px dashed var(--group-color, #c9a96e) !important;
+  border-radius: 12px;
+  box-shadow: none !important;
+
+  display: flex;
+  flex-direction: column;
+  overflow: visible; /* children can peek out */
+}
+
+/* Selected state: slightly more visible fill */
+.group-node.selected {
+  background: color-mix(in srgb, var(--group-color, #c9a96e) 12%, transparent) !important;
+}
+
+/* Header bar */
+.group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 10px 4px;
+  gap: 8px;
+  cursor: grab;
+  flex-shrink: 0;
+}
+.group-header:active { cursor: grabbing; }
+
+.group-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--group-color, #c9a96e);
+  cursor: text;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.group-label-input {
+  font-size: 10px;
+  font-family: 'DM Mono', monospace;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border2);
+  color: var(--text);
+  outline: none;
+  width: 140px;
+  padding: 1px 0;
+}
+
+.group-color-picker {
+  display: flex;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+/* Spacer body — transparent, eats pointer events for child drop */
+.group-body {
+  flex: 1;
+  min-height: 0;
+  pointer-events: none; /* let children receive events through */
+}

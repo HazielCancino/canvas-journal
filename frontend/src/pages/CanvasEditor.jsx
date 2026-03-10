@@ -51,12 +51,10 @@ function isUrl(str) {
   try { new URL(str.startsWith('http') ? str : `https://${str}`); return str.includes('.') } catch { return false }
 }
 
-// ── Clean nodes for history/save (strip runtime functions) ───────────────────
 function cleanNodes(ns) {
   return ns.map(({ data: { _update, _delete, _boardSettings, ...rest }, ...n }) => ({ ...n, data: rest }))
 }
 
-// ── Inner canvas component ───────────────────────────────────────────────────
 function CanvasInner({ boardId, onBack }) {
   const [board, setBoard]                  = useState(null)
   const [nodes, setNodes, onNodesChange]   = useNodesState([])
@@ -72,40 +70,28 @@ function CanvasInner({ boardId, onBack }) {
   const saveTimer  = useRef(null)
   const ctxFileRef = useRef()
   const ctxPosRef  = useRef(null)
+  const nodesRef   = useRef([])
+  const edgesRef   = useRef([])
 
-  // ── Undo history ──────────────────────────────────────────────────────────
-  const historyRef  = useRef([])   // array of { nodes: clean[], edges: [] }
-  const historyIdx  = useRef(-1)
-  const isUndoing   = useRef(false)
-  // Live refs so callbacks always have fresh state without stale closure issues
-  const nodesRef    = useRef([])
-  const edgesRef    = useRef([])
+  // Undo history
+  const historyRef = useRef([])
+  const historyIdx = useRef(-1)
+  const isUndoing  = useRef(false)
+
   useEffect(() => { nodesRef.current = nodes }, [nodes])
   useEffect(() => { edgesRef.current = edges }, [edges])
 
-  const pushHistory = useCallback((snapNs, snapEs) => {
-    if (isUndoing.current) return
-    // Truncate any redo future
-    historyRef.current.length = historyIdx.current + 1
-    historyRef.current.push({
-      nodes: JSON.parse(JSON.stringify(cleanNodes(snapNs))),
-      edges: JSON.parse(JSON.stringify(snapEs)),
-    })
-    // Cap at 60 steps
-    if (historyRef.current.length > 60) historyRef.current.shift()
-    historyIdx.current = historyRef.current.length - 1
-  }, [])
-
   const { screenToFlowPosition, fitView, setCenter, getNode } = useReactFlow()
 
-  // ── Selection tracking ────────────────────────────────────────────────────
+  // Track selection
   useOnSelectionChange({
     onChange: ({ nodes: sn }) => setSelectedIds(sn.map(n => n.id)),
   })
+
   const allLocked = selectedIds.length > 0 &&
     selectedIds.every(id => nodes.find(n => n.id === id)?.draggable === false)
 
-  // ── Node helpers ──────────────────────────────────────────────────────────
+  // Helpers
   const updateNodeData = useCallback((id, patch) => {
     setNodes(ns => ns.map(n => n.id === id ? { ...n, data: { ...n.data, ...patch } } : n))
   }, [])
@@ -119,12 +105,21 @@ function CanvasInner({ boardId, onBack }) {
     },
   }), [updateNodeData])
 
-  // ── Inject board settings into video nodes ────────────────────────────────
+  const pushHistory = useCallback((snapNs, snapEs) => {
+    if (isUndoing.current) return
+    historyRef.current.length = historyIdx.current + 1
+    historyRef.current.push({
+      nodes: JSON.parse(JSON.stringify(cleanNodes(snapNs))),
+      edges: JSON.parse(JSON.stringify(snapEs)),
+    })
+    if (historyRef.current.length > 60) historyRef.current.shift()
+    historyIdx.current = historyRef.current.length - 1
+  }, [])
+
+  // Video settings injection
   useEffect(() => {
     setNodes(ns => ns.map(n =>
-      n.type === 'videoNote'
-        ? { ...n, data: { ...n.data, _boardSettings: boardSettings } }
-        : n
+      n.type === 'videoNote' ? { ...n, data: { ...n.data, _boardSettings: boardSettings } } : n
     ))
   }, [boardSettings.loopVideos, boardSettings.autoplayVideos])
 
@@ -132,7 +127,7 @@ function CanvasInner({ boardId, onBack }) {
     if (boardSettings.resetZoom) fitView({ duration: 400 })
   }, [boardSettings.resetZoom])
 
-  // ── Load board ────────────────────────────────────────────────────────────
+  // Load
   useEffect(() => {
     boardsApi.get(boardId).then(r => {
       setBoard(r.data)
@@ -143,7 +138,6 @@ function CanvasInner({ boardId, onBack }) {
       setEdges(loadedEdges)
       if (s.bgConfig)      setBgConfig(s.bgConfig)
       if (s.boardSettings) setBoardSettings({ ...DEFAULT_SETTINGS, ...s.boardSettings })
-      // Seed history with the loaded state
       setTimeout(() => {
         historyRef.current = [{ nodes: JSON.parse(JSON.stringify(s.nodes||[])), edges: JSON.parse(JSON.stringify(loadedEdges)) }]
         historyIdx.current = 0
@@ -151,7 +145,7 @@ function CanvasInner({ boardId, onBack }) {
     }).catch(console.error)
   }, [boardId])
 
-  // ── Auto-save ─────────────────────────────────────────────────────────────
+  // Save
   useEffect(() => {
     if (!board) return
     clearTimeout(saveTimer.current)
@@ -159,8 +153,7 @@ function CanvasInner({ boardId, onBack }) {
       setSaving(true)
       try {
         await boardsApi.save(boardId, {
-          nodes: cleanNodes(nodes),
-          edges, bgConfig, boardSettings,
+          nodes: cleanNodes(nodes), edges, bgConfig, boardSettings,
           viewport: { x: 0, y: 0, zoom: 1 },
         })
         setLastSaved(new Date())
@@ -169,14 +162,18 @@ function CanvasInner({ boardId, onBack }) {
     }, 1500)
   }, [nodes, edges, bgConfig, boardSettings, board])
 
-  // ── Ctrl+Z undo ───────────────────────────────────────────────────────────
+  // Ctrl+Z undo
   useEffect(() => {
     const onKeyDown = (e) => {
-      // Don't intercept Ctrl+Z while user is typing in a text input / textarea
       const tag = document.activeElement?.tagName?.toLowerCase()
       const ce  = document.activeElement?.contentEditable
       if (tag === 'input' || tag === 'textarea' || ce === 'true') return
-
+      // Esc deselects
+      if (e.key === 'Escape') {
+        setNodes(ns => ns.map(n => ({ ...n, selected: false })))
+        setSelectedIds([])
+        return
+      }
       if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
         e.preventDefault()
         if (historyIdx.current <= 0) return
@@ -193,16 +190,16 @@ function CanvasInner({ boardId, onBack }) {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [attachUpdater])
 
-  // ── Add node ──────────────────────────────────────────────────────────────
+  // Add node
   const addNode = useCallback((type, data = {}, screenPos = null) => {
     const sp = screenPos || { x: window.innerWidth / 2, y: window.innerHeight / 2 }
     const fp = screenToFlowPosition(sp)
     const id = uid()
     const extraData = {}
     if (type === 'videoNote') extraData._boardSettings = boardSettings
-    if (type === 'textNote' && boardSettings.defaultNoteColor && boardSettings.defaultNoteColor !== 'Default') {
+    if (type === 'textNote' && boardSettings.defaultNoteColor !== 'Default')
       extraData.colorLabel = boardSettings.defaultNoteColor
-    }
+
     const newNode = {
       id, type,
       position: { x: fp.x - 110, y: fp.y - 60 },
@@ -221,7 +218,7 @@ function CanvasInner({ boardId, onBack }) {
     setCtxMenu(null)
   }, [screenToFlowPosition, updateNodeData, boardSettings, pushHistory])
 
-  // ── File upload (with text/doc interception) ──────────────────────────────
+  // Upload (with text/docx interception)
   const handleUpload = useCallback(async (files, screenPos = null) => {
     for (const file of files) {
       const sp = screenPos
@@ -229,37 +226,26 @@ function CanvasInner({ boardId, onBack }) {
         : null
       const name = file.name || ''
 
-      // .txt and .md → text node
       if (name.endsWith('.txt') || name.endsWith('.md')) {
         try {
           const text = await new Promise((res, rej) => {
-            const reader = new FileReader()
-            reader.onload  = e => res(e.target.result)
-            reader.onerror = rej
-            reader.readAsText(file)
+            const r = new FileReader(); r.onload = e => res(e.target.result); r.onerror = rej; r.readAsText(file)
           })
-          const title = name.replace(/\.(txt|md)$/, '')
-          addNode('textNote', { title, text }, sp)
+          addNode('textNote', { title: name.replace(/\.(txt|md)$/, ''), text }, sp)
           continue
-        } catch(e) { console.error('Text read failed', e) }
+        } catch(e) { console.error(e) }
       }
 
-      // .docx → mammoth → text node
       if (name.endsWith('.docx')) {
         try {
-          const mammoth      = await import('mammoth')
-          const arrayBuffer  = await file.arrayBuffer()
-          const result       = await mammoth.convertToMarkdown({ arrayBuffer })
-          const title        = name.replace(/\.docx$/, '')
-          addNode('textNote', { title, text: result.value }, sp)
+          const mammoth     = await import('mammoth')
+          const arrayBuffer = await file.arrayBuffer()
+          const result      = await mammoth.convertToMarkdown({ arrayBuffer })
+          addNode('textNote', { title: name.replace(/\.docx$/, ''), text: result.value }, sp)
           continue
-        } catch(e) {
-          console.error('mammoth failed (run: npm install mammoth)', e)
-          // fall through to regular upload
-        }
+        } catch(e) { console.error('mammoth failed:', e) }
       }
 
-      // Everything else → regular backend upload
       try {
         const { data: m } = await mediaApi.upload(boardId, file)
         if      (m.file_type === 'image') addNode('imageNote', { src: mediaApi.url(m.filename), originalName: m.original_name }, sp)
@@ -269,7 +255,7 @@ function CanvasInner({ boardId, onBack }) {
     }
   }, [boardId, addNode])
 
-  // ── Context menu file upload ──────────────────────────────────────────────
+  // Context menu upload
   const openCtxFileDialog = useCallback((pos) => {
     ctxPosRef.current = pos; setCtxMenu(null)
     setTimeout(() => ctxFileRef.current?.click(), 50)
@@ -280,7 +266,7 @@ function CanvasInner({ boardId, onBack }) {
     e.target.value = ''
   }, [handleUpload])
 
-  // ── Paste ─────────────────────────────────────────────────────────────────
+  // Paste
   useEffect(() => {
     const onPaste = (e) => {
       const tag = document.activeElement?.tagName?.toLowerCase()
@@ -295,14 +281,14 @@ function CanvasInner({ boardId, onBack }) {
     return () => window.removeEventListener('paste', onPaste)
   }, [addNode, handleUpload])
 
-  // ── Drag & drop ───────────────────────────────────────────────────────────
+  // Drag & drop
   const onDrop = useCallback((e) => {
     e.preventDefault()
     const files = Array.from(e.dataTransfer.files)
     if (files.length) handleUpload(files, { x: e.clientX, y: e.clientY })
   }, [handleUpload])
 
-  // ── Group parenting ───────────────────────────────────────────────────────
+  // Group parenting
   const onNodeDragStop = useCallback((_, draggedNode) => {
     setNodes(ns => {
       const next = reparentNodes(draggedNode, ns)
@@ -311,16 +297,18 @@ function CanvasInner({ boardId, onBack }) {
     })
   }, [pushHistory])
 
-  // ── Focus a node ─────────────────────────────────────────────────────────
+  // Focus node from settings
   const focusNode = useCallback((id) => {
     const n = getNode(id)
     if (!n) return
-    const cx = n.position.x + (n.measured?.width  || 240) / 2
-    const cy = n.position.y + (n.measured?.height || 180) / 2
-    setCenter(cx, cy, { zoom: 0.9, duration: 500 })
+    setCenter(
+      n.position.x + (n.measured?.width  || 240) / 2,
+      n.position.y + (n.measured?.height || 180) / 2,
+      { zoom: 0.9, duration: 500 }
+    )
   }, [getNode, setCenter])
 
-  // ── Selection actions ─────────────────────────────────────────────────────
+  // Selection: group
   const groupSelected = useCallback(() => {
     if (selectedIds.length < 2) return
     const sel = nodes.filter(n => selectedIds.includes(n.id))
@@ -351,6 +339,7 @@ function CanvasInner({ boardId, onBack }) {
     })
   }, [selectedIds, nodes, updateNodeData, pushHistory])
 
+  // Selection: delete
   const deleteSelected = useCallback(() => {
     const newEdges = edgesRef.current.filter(e =>
       !selectedIds.includes(e.source) && !selectedIds.includes(e.target)
@@ -364,6 +353,7 @@ function CanvasInner({ boardId, onBack }) {
     setSelectedIds([])
   }, [selectedIds, pushHistory])
 
+  // Selection: duplicate
   const duplicateSelected = useCallback(() => {
     const sel = nodes.filter(n => selectedIds.includes(n.id))
     const newNodes = sel.map(n => {
@@ -385,27 +375,22 @@ function CanvasInner({ boardId, onBack }) {
     })
   }, [selectedIds, nodes, updateNodeData, pushHistory])
 
+  // Selection: lock / unlock
   const toggleLockSelected = useCallback(() => {
-    const newDraggable = allLocked
     setNodes(ns => ns.map(n =>
       selectedIds.includes(n.id)
-        ? { ...n, draggable: newDraggable, connectable: newDraggable, selectable: true }
+        ? { ...n, draggable: allLocked, connectable: allLocked, selectable: true }
         : n
     ))
   }, [selectedIds, allLocked])
 
+  // Selection: deselect
   const deselectAll = useCallback(() => {
     setNodes(ns => ns.map(n => ({ ...n, selected: false })))
     setSelectedIds([])
   }, [])
 
-  // ── Right-click ───────────────────────────────────────────────────────────
-  const onPaneContextMenu = useCallback((e) => {
-    e.preventDefault()
-    setCtxMenu({ x: e.clientX, y: e.clientY })
-  }, [])
-
-  // ── Edge connect with history ─────────────────────────────────────────────
+  // Edge connect
   const onConnect = useCallback((p) => {
     setEdges(es => {
       const next = addEdge({ ...p, type: 'smoothstep' }, es)
@@ -413,6 +398,11 @@ function CanvasInner({ boardId, onBack }) {
       return next
     })
   }, [pushHistory])
+
+  const onPaneContextMenu = useCallback((e) => {
+    e.preventDefault()
+    setCtxMenu({ x: e.clientX, y: e.clientY })
+  }, [])
 
   const pattern      = bgConfig?.pattern || 'dots'
   const patternColor = bgConfig?.patternColor || '#2a2720'
@@ -447,8 +437,8 @@ function CanvasInner({ boardId, onBack }) {
           onPaneClick={() => setCtxMenu(null)}
           fitView minZoom={0.05} maxZoom={4}
           deleteKeyCode="Delete"
-          multiSelectionKeyCode="Alt"
-          selectionOnDrag
+          multiSelectionKeyCode="Shift"   /* Shift+click to multi-select (Alt conflicts with Windows menu bar) */
+          selectionOnDrag                 /* drag on empty canvas to rubber-band select */
           proOptions={{ hideAttribution: true }}
           snapToGrid={boardSettings.snapToGrid}
           snapGrid={[16, 16]}
@@ -485,12 +475,9 @@ function CanvasInner({ boardId, onBack }) {
           />
         )}
 
-        <input
-          ref={ctxFileRef} type="file" multiple
+        <input ref={ctxFileRef} type="file" multiple
           accept="image/*,video/*,.gif,.pdf,.txt,.md,.docx"
-          style={{ display: 'none' }}
-          onChange={onCtxFileChange}
-        />
+          style={{ display: 'none' }} onChange={onCtxFileChange} />
       </div>
 
       <BoardSettings

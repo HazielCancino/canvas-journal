@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { NodeResizer } from '@xyflow/react'
 import NodeWrapper from './NodeWrapper'
 import './nodes.css'
+import './GroupBoxNode.css'
 
 const COLORS = ['#c9a96e','#6ec98a','#6e9ec9','#c96e6e','#9e6ec9','#6ec9c9']
 
@@ -16,23 +17,30 @@ export default function GroupBoxNode({ data, selected }) {
   }
 
   return (
-    <NodeWrapper selected={selected} onDelete={data._delete}>
+    // NodeWrapper adds the delete button — pass noOutline so the group keeps its dashed look
+    <NodeWrapper selected={selected} onDelete={data._delete} noOutline>
       <div
-        className="node group-node"
-        style={{ '--group-color': color, minWidth: 240, minHeight: 180 }}
+        className={`node group-node ${selected ? 'selected' : ''}`}
+        style={{ '--group-color': color }}
       >
-        <NodeResizer minWidth={160} minHeight={120} isVisible={selected} color={color} />
+        {/* Resizer — all 8 handles, resizes freely in both directions */}
+        <NodeResizer
+          minWidth={120}
+          minHeight={80}
+          isVisible={selected}
+          color={color}
+          lineStyle={{ stroke: color, strokeDasharray: '4 3' }}
+        />
 
-        {/* Header bar - the only draggable part */}
-        <div className="group-header">
+        {/* Header */}
+        <div className="group-header" onPointerDown={e => e.stopPropagation()}>
           {editLabel ? (
             <input
               className="input group-label-input"
               value={label}
               onChange={e => setLabel(e.target.value)}
               onBlur={saveLabel}
-              onKeyDown={e => e.key === 'Enter' && saveLabel()}
-              onPointerDown={e => e.stopPropagation()}
+              onKeyDown={e => { if (e.key === 'Enter') saveLabel(); if (e.key === 'Escape') { setLabel(data.label||'Group'); setEditLabel(false) } }}
               autoFocus
             />
           ) : (
@@ -52,7 +60,6 @@ export default function GroupBoxNode({ data, selected }) {
                     outline: c === color ? `2px solid ${c}` : 'none',
                     outlineOffset: 2,
                   }}
-                  onPointerDown={e => e.stopPropagation()}
                   onClick={() => data._update && data._update({ color: c })}
                 />
               ))}
@@ -60,7 +67,7 @@ export default function GroupBoxNode({ data, selected }) {
           )}
         </div>
 
-        {/* Body - transparent so you can see nodes inside */}
+        {/* Body — transparent, fills remaining space so drop targets work */}
         <div className="group-body" />
       </div>
     </NodeWrapper>
