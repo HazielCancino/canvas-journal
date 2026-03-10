@@ -18,7 +18,7 @@ Built with React + Flask + MySQL.
 - Image & video nodes — drag & drop or upload
 - Group boxes — drag nodes inside to parent them (ComfyUI-style)
 - File attachment nodes (PDF, TXT, etc.)
-- Embed nodes: YouTube, Vimeo, Spotify, SoundCloud, RedGifs, Reddit, Twitter/X, TikTok, Pinterest, and any link as a preview card
+- Embed nodes: YouTube, Vimeo, Spotify, SoundCloud, Reddit, Twitter/X, TikTok, Pinterest, and any link as a preview card
 - Paste a URL on the canvas → instantly creates an embed node
 - Paste an image → uploads and drops it on the canvas
 - Multi-select with Alt key — group, duplicate, lock, delete
