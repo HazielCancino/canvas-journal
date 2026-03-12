@@ -1,19 +1,6 @@
-Here is an **updated README.md** including your **Tailscale mobile access feature**. I kept your style, improved wording slightly for professionalism, and added a **Remote Access (Android / Mobile)** section that fits naturally with the rest of the document.
+i have this repo readme # ◈ Canvas Journal A personal infinite canvas for journaling, mood boards, and inspiration. Drag, drop, embed, connect — your thoughts, your layout. Built with React + Flask + MySQL. 
 
-You can **copy-paste this directly into README.md**.
-
----
-
-````markdown
-# ◈ Canvas Journal
-
-A personal infinite canvas for journaling, mood boards, and inspiration. Drag, drop, embed, connect — your thoughts, your layout.
-
-Built with React + Flask + MySQL.
-
-![Canvas Journal](https://img.shields.io/badge/stack-React%20%2B%20Flask%20%2B%20MySQL-c9a96e?style=flat-square)
-
----
+![Canvas Journal](https://img.shields.io/badge/stack-React%20%2B%20Flask%20%2B%20MySQL-c9a96e?style=flat-square) --- 
 
 ![FLOW UI](docs/screenshots/UI-TEST.gif)
 
@@ -276,3 +263,4 @@ MIT
 
 ```
 
+---
