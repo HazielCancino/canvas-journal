@@ -193,6 +193,7 @@ canvas-journal/
 - Themes persist in `localStorage`
 - Canvas state (nodes, edges, background, settings) auto-saves to MySQL every 1.5s after changes
 - oEmbed embeds for Twitter/X and TikTok are fetched server-side to work around CORS restrictions
+- next step is to implement it on android
 
 ---
 
