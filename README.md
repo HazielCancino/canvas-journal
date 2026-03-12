@@ -1,3 +1,10 @@
+Here is an **updated README.md** including your **Tailscale mobile access feature**. I kept your style, improved wording slightly for professionalism, and added a **Remote Access (Android / Mobile)** section that fits naturally with the rest of the document.
+
+You can **copy-paste this directly into README.md**.
+
+---
+
+````markdown
 # ◈ Canvas Journal
 
 A personal infinite canvas for journaling, mood boards, and inspiration. Drag, drop, embed, connect — your thoughts, your layout.
@@ -56,12 +63,16 @@ Built with React + Flask + MySQL.
 - Node.js 18+
 - MySQL 8 running locally
 
+---
+
 ### 1. Clone
 
 ```bash
 git clone https://github.com/your-username/canvas-journal.git
 cd canvas-journal
-```
+````
+
+---
 
 ### 2. Database
 
@@ -102,16 +113,32 @@ CREATE TABLE media_files (
 );
 ```
 
+---
+
 ### 3. Backend
 
 ```bash
 cd backend
 python -m venv venv
-# Windows:
-venv\Scripts\activate
-# macOS/Linux:
-source venv/bin/activate
+```
 
+Activate the virtual environment:
+
+Windows:
+
+```bash
+venv\Scripts\activate
+```
+
+macOS/Linux:
+
+```bash
+source venv/bin/activate
+```
+
+Install dependencies:
+
+```bash
 pip install -r requirements.txt
 ```
 
@@ -127,8 +154,15 @@ Start the server:
 
 ```bash
 python app.py
-# Runs on http://127.0.0.1:5000
 ```
+
+Runs on:
+
+```
+http://127.0.0.1:5000
+```
+
+---
 
 ### 4. Frontend
 
@@ -136,8 +170,47 @@ python app.py
 cd frontend
 npm install
 npm run dev
-# Runs on http://localhost:5173
 ```
+
+Runs on:
+
+```
+http://localhost:5173
+```
+
+---
+
+## Remote Access (Android / Mobile)
+
+Canvas Journal can also be accessed from a mobile device such as an Android phone.
+
+Using **Tailscale**, the phone can securely connect to the same machine running the backend server. When both devices are connected to the same Tailscale network, the mobile browser can access the app using the PC's Tailscale IP.
+
+Example:
+
+```
+http://100.x.x.x:5173
+```
+
+This allows the phone to interact with the same backend and database as the desktop version.
+
+Because both devices communicate with the same server, **all changes sync instantly**:
+
+```
+Phone → Flask API → MySQL
+PC    → Flask API → MySQL
+```
+
+The mobile version supports the same functionality as desktop, including:
+
+* Editing boards
+* Dragging nodes
+* Creating notes
+* Uploading images and files
+* Embeds and media nodes
+* Canvas navigation and editing
+
+As long as the backend server is running and both devices are connected via Tailscale, the app behaves as a shared workspace between PC and mobile.
 
 ---
 
@@ -189,14 +262,17 @@ canvas-journal/
 
 ## Notes
 
-- `backend/uploads/` is gitignored — user media stays local only
-- Themes persist in `localStorage`
-- Canvas state (nodes, edges, background, settings) auto-saves to MySQL every 1.5s after changes
-- oEmbed embeds for Twitter/X and TikTok are fetched server-side to work around CORS restrictions
-- next step is to implement it on android
+* `backend/uploads/` is gitignored — user media stays local only
+* Themes persist in `localStorage`
+* Canvas state (nodes, edges, background, settings) auto-saves to MySQL every 1.5s after changes
+* oEmbed embeds for Twitter/X and TikTok are fetched server-side to work around CORS restrictions
+* Mobile access is possible via Tailscale without requiring a native Android application
 
 ---
 
 ## License
 
 MIT
+
+```
+

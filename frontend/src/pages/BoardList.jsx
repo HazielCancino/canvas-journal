@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { boardsApi } from '../api'
+import { boardsApi, resolveUrl } from '../api'
 import ThemeSwitcher from '../components/ThemeSwitcher'
 import './BoardList.css'
 
@@ -70,7 +70,7 @@ export default function BoardList({ onOpen, themeKey, setThemeKey }) {
     setBoards(prev => [r.data, ...prev])
     setNewName('')
     setCreating(false)
-    onOpen(r.data.id)          // ← opens the new board immediately
+    onOpen(r.data.id)
   }
 
   const filtered = boards
@@ -191,7 +191,7 @@ export default function BoardList({ onOpen, themeKey, setThemeKey }) {
             isMenuOpen={activeMenu === board.id}
             onMenuOpen={e => { e.stopPropagation(); setActiveMenu(board.id) }}
             onMenuClose={() => setActiveMenu(null)}
-            onOpen={() => onOpen(board.id)}   // ← calls the prop correctly
+            onOpen={() => onOpen(board.id)}
             onRefresh={load}
           />
         ))}
@@ -279,18 +279,22 @@ function BoardCard({ board, isMenuOpen, onMenuOpen, onMenuClose, onOpen, onRefre
     onMenuClose()
   }
 
+  // ── FIX 1: uploadCover no longer hardcodes localhost ──────────────────────
   const uploadCover = async (e) => {
     const file = e.target.files[0]
     if (!file) return
     const fd = new FormData()
     fd.append('file', file)
-    await fetch(`http://localhost:5000/api/boards/${localBoard.id}/cover`, { method: 'POST', body: fd })
+    const base = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace('/api', '')
+    await fetch(`${base}/api/boards/${localBoard.id}/cover`, { method: 'POST', body: fd })
     onRefresh()
     e.target.value = ''
   }
 
   const pri = PRIORITY.find(p => p.value === (localBoard.priority || 0)) || PRIORITY[0]
-  const cover = localBoard.cover_image || localBoard.thumbnail
+
+  // ── FIX 2: cover image no longer hardcodes localhost ──────────────────────
+  const cover = resolveUrl(localBoard.cover_image || localBoard.thumbnail)
 
   return (
     <div
@@ -300,7 +304,7 @@ function BoardCard({ board, isMenuOpen, onMenuOpen, onMenuClose, onOpen, onRefre
       {/* Cover image area */}
       <div
         className="bl-cover"
-        style={cover ? { backgroundImage: `url(http://localhost:5000${cover})` } : {}}
+        style={cover ? { backgroundImage: `url(${cover})` } : {}}
       >
         {!cover && <span className="bl-cover-placeholder">◈</span>}
         {localBoard.priority > 0 && (
@@ -319,7 +323,6 @@ function BoardCard({ board, isMenuOpen, onMenuOpen, onMenuClose, onOpen, onRefre
 
       {/* Card body */}
       <div className="bl-card-body">
-        {/* Name (double-click to rename) */}
         {renaming ? (
           <input
             autoFocus className="input bl-rename-input"
@@ -343,7 +346,6 @@ function BoardCard({ board, isMenuOpen, onMenuOpen, onMenuClose, onOpen, onRefre
           </div>
         )}
 
-        {/* Description (double-click to edit) */}
         {editingDesc ? (
           <textarea
             autoFocus className="bl-desc-input"
@@ -363,7 +365,6 @@ function BoardCard({ board, isMenuOpen, onMenuOpen, onMenuClose, onOpen, onRefre
           </div>
         )}
 
-        {/* Tags */}
         <div className="bl-tags-row" onClick={e => e.stopPropagation()}>
           {(localBoard.tags || []).map(t => (
             <span key={t.label} className="bl-tag" style={{ '--tag-color': t.color }}>
@@ -403,7 +404,6 @@ function BoardCard({ board, isMenuOpen, onMenuOpen, onMenuClose, onOpen, onRefre
           </div>
         )}
 
-        {/* Priority dots */}
         <div className="bl-priority-row" onClick={e => e.stopPropagation()}>
           <span className="bl-meta-label">Priority:</span>
           {PRIORITY.map(p => (
@@ -417,7 +417,6 @@ function BoardCard({ board, isMenuOpen, onMenuOpen, onMenuClose, onOpen, onRefre
           ))}
         </div>
 
-        {/* Footer: timestamp + kebab menu */}
         <div className="bl-card-footer">
           <span className="bl-meta">
             {localBoard.last_opened_at

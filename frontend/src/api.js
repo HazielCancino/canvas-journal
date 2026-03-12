@@ -1,6 +1,22 @@
 import axios from 'axios'
 
-const api = axios.create({ baseURL: 'http://localhost:5000/api' })
+const BASE   = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+const ORIGIN = BASE.replace('/api', '')   // e.g. http://100.100.190.36:5000
+
+const api = axios.create({ baseURL: BASE })
+
+// Converts any URL the backend returns into an absolute URL.
+// "/api/media/cover/x.jpg" → "http://100.100.190.36:5000/api/media/cover/x.jpg"
+// "http://..."             → unchanged
+// null / undefined         → null
+export function resolveUrl(path) {
+  if (!path) return null
+  if (path.startsWith('http')) return path
+  return `${ORIGIN}${path.startsWith('/') ? '' : '/'}${path}`
+}
+
+// The raw origin (no /api) — used by EmbedNode and BoardList for direct fetch calls
+export { ORIGIN }
 
 export const boardsApi = {
   list:      (archived = false) => api.get(`/boards/?archived=${archived}`),
@@ -23,7 +39,7 @@ export const mediaApi = {
     fd.append('file', file)
     return api.post(`/media/upload/${boardId}`, fd)
   },
-  url:    (filename) => `http://localhost:5000/api/media/file/${filename}`,
+  url:    (filename) => `${ORIGIN}/api/media/file/${filename}`,
   list:   (boardId)  => api.get(`/media/board/${boardId}`),
   delete: (id)       => api.delete(`/media/${id}`),
 }

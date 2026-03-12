@@ -27,7 +27,8 @@ echo ==============================
 echo   All services started!
 echo   Backend: http://127.0.0.1:5000
 echo   Frontend: http://localhost:5173
+echo   From this PC    →  http://localhost:5173
+echo   From your phone →  http://100.100.190.36:5173
 echo ==============================
 echo.
 pause
-

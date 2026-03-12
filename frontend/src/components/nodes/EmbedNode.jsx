@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Handle, Position, NodeResizer } from '@xyflow/react'
+import { ORIGIN } from '../../api'
 import NodeWrapper from './NodeWrapper'
 import './nodes.css'
 import './EmbedNode.css'
@@ -46,8 +47,6 @@ function getDirectEmbedUrl(url, platform) {
         return slug ? `https://www.redgifs.com/ifr/${slug}` : null
       }
       case 'reddit': {
-        // redditmedia.com embed — works for posts
-        // Convert reddit.com/r/sub/comments/id/title to redditmedia embed
         const match = url.match(/reddit\.com(\/r\/[^?#]+)/)
         if (match) {
           return `https://www.redditmedia.com${match[1]}?ref_source=embed&embed=true&theme=dark`
@@ -81,11 +80,11 @@ function OEmbedFrame({ url, platform, color }) {
 
   useEffect(() => {
     setLoading(true); setError(null); setSrcdoc(null)
-    fetch(`http://localhost:5000/api/oembed?url=${encodeURIComponent(url)}`)
+    // ── FIX: uses ORIGIN from api.js instead of hardcoded localhost ──
+    fetch(`${ORIGIN}/api/oembed?url=${encodeURIComponent(url)}`)
       .then(r => r.json())
       .then(d => {
         if (d.html) {
-          // Wrap in a self-contained HTML document with dark bg + scroll
           const doc = `<!DOCTYPE html>
 <html>
 <head>
@@ -117,7 +116,9 @@ function OEmbedFrame({ url, platform, color }) {
   if (error) return (
     <div className="embed-error">
       <span>Could not load embed</span>
-      <a href={url} target="_blank" rel="noreferrer" className="embed-link-open">Open on {PLATFORM_META[platform]?.label} ↗</a>
+      <a href={url} target="_blank" rel="noreferrer" className="embed-link-open">
+        Open on {PLATFORM_META[platform]?.label} ↗
+      </a>
     </div>
   )
 
@@ -180,15 +181,14 @@ export default function EmbedNode({ data, selected }) {
   const pm       = PLATFORM_META[platform] || PLATFORM_META.unknown
   const embedUrl = getDirectEmbedUrl(data.url, platform)
 
-  // Platforms that use oEmbed srcdoc
   const isOEmbed  = ['twitter', 'tiktok'].includes(platform)
-  // Platforms that need OG meta fetch for preview card
   const needsMeta = ['link', 'pinterest', 'unknown'].includes(platform)
 
   useEffect(() => {
     if (!needsMeta || meta || !data.url) return
     setLoading(true)
-    fetch(`http://localhost:5000/api/meta?url=${encodeURIComponent(data.url)}`)
+    // ── FIX: uses ORIGIN from api.js instead of hardcoded localhost ──
+    fetch(`${ORIGIN}/api/meta?url=${encodeURIComponent(data.url)}`)
       .then(r => r.json())
       .then(d => { setMeta(d); if (data._update) data._update({ meta: d }) })
       .catch(() => setMeta({ title: data.url }))
@@ -196,12 +196,12 @@ export default function EmbedNode({ data, selected }) {
   }, [data.url])
 
   const iframeH =
-    platform === 'spotify'     ? (data.url?.includes('/track/') ? 152 : 380)
+    platform === 'spotify'      ? (data.url?.includes('/track/') ? 152 : 380)
     : platform === 'soundcloud' ? 166
-    : platform === 'redgif'    ? 360
-    : platform === 'reddit'    ? 420
-    : platform === 'twitter'   ? 360
-    : platform === 'tiktok'    ? 480
+    : platform === 'redgif'     ? 360
+    : platform === 'reddit'     ? 420
+    : platform === 'twitter'    ? 360
+    : platform === 'tiktok'     ? 480
     : 280
 
   const resizable = ['youtube', 'vimeo', 'redgif', 'soundcloud', 'reddit', 'twitter', 'tiktok'].includes(platform)

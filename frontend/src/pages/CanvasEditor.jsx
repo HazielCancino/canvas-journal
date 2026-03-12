@@ -7,7 +7,7 @@ import {
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 
-import { boardsApi, mediaApi } from '../api'
+import { boardsApi, mediaApi, ORIGIN } from '../api'
 import Toolbar       from '../components/Toolbar'
 import ContextMenu   from '../components/ContextMenu'
 import BoardSettings from '../components/BoardSettings'
@@ -53,6 +53,22 @@ function isUrl(str) {
 
 function cleanNodes(ns) {
   return ns.map(({ data: { _update, _delete, _boardSettings, _openFocusMode, _triggerRename, ...rest }, ...n }) => ({ ...n, data: rest }))
+}
+
+// ── Fix any localhost src/url saved in node data ──────────────────────────────
+// When nodes were created on PC they saved "http://localhost:5000/api/media/..."
+// We replace localhost:5000 with the current ORIGIN so phone can load them too.
+function patchNodeUrls(nodes) {
+  return nodes.map(n => {
+    const d = { ...n.data }
+    if (d.src && d.src.includes('localhost')) {
+      d.src = d.src.replace(/http:\/\/localhost:\d+/, ORIGIN)
+    }
+    if (d.url && d.url.includes('localhost')) {
+      d.url = d.url.replace(/http:\/\/localhost:\d+/, ORIGIN)
+    }
+    return { ...n, data: d }
+  })
 }
 
 function CanvasInner({ boardId, onBack }) {
@@ -129,8 +145,10 @@ function CanvasInner({ boardId, onBack }) {
     boardsApi.get(boardId).then(r => {
       setBoard(r.data)
       const s = r.data.canvas_state || {}
-      const loadedNodes = (s.nodes || []).map(attachUpdater)
-      const loadedEdges = s.edges || []
+      // ── Patch saved localhost URLs before attaching updaters ──
+      const patched      = patchNodeUrls(s.nodes || [])
+      const loadedNodes  = patched.map(attachUpdater)
+      const loadedEdges  = s.edges || []
       setNodes(loadedNodes)
       setEdges(loadedEdges)
       if (s.bgConfig)      setBgConfig(s.bgConfig)
