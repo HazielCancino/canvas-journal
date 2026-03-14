@@ -64,7 +64,20 @@ export default function BoardSettings({
               </span>
               <Toggle value={settings.showMinimap ?? true} onChange={v => set('showMinimap', v)} />
             </label>
-
+            
+        <div className="bs-setting-row">
+          <div className="bs-setting-info">
+            <span className="bs-setting-label">Alignment guides</span>
+            <span className="bs-setting-desc">Show snap lines when moving nodes near each other</span>
+          </div>
+          <button
+            className={`bs-toggle ${settings.alignmentGuides !== false ? 'on' : ''}`}
+            onClick={() => onSettingsChange(s => ({ ...s, alignmentGuides: s.alignmentGuides === false ? true : false }))}
+          >
+            {settings.alignmentGuides !== false ? 'On' : 'Off'}
+          </button>
+        </div>
+ 
             <div className="bs-toggle-row">
               <span className="bs-toggle-label">
                 <span className="bs-toggle-icon">⊙</span>

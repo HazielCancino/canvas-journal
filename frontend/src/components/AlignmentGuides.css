@@ -1,0 +1,23 @@
+.alignment-guides-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  overflow: hidden;
+}
+
+.guide-line {
+  position: absolute;
+  background: #e05c5c;
+  opacity: .85;
+}
+
+.guide-vertical {
+  width: 1px;
+  transform: translateX(-0.5px);
+}
+
+.guide-horizontal {
+  height: 1px;
+  transform: translateY(-0.5px);
+}

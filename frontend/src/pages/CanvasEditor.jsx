@@ -8,17 +8,19 @@ import {
 import '@xyflow/react/dist/style.css'
 
 import { boardsApi, mediaApi, ORIGIN } from '../api'
-import Toolbar       from '../components/Toolbar'
-import ContextMenu   from '../components/ContextMenu'
-import BoardSettings from '../components/BoardSettings'
-import SelectionBar  from '../components/SelectionBar'
-import TextNode      from '../components/nodes/TextNode'
-import ImageNode     from '../components/nodes/ImageNode'
-import VideoNode     from '../components/nodes/VideoNode'
-import GroupBoxNode  from '../components/nodes/GroupBoxNode'
-import FileNode      from '../components/nodes/FileNode'
-import EmbedNode     from '../components/nodes/EmbedNode'
-import { reparentNodes } from '../groupUtils'
+import Toolbar          from '../components/Toolbar'
+import ContextMenu      from '../components/ContextMenu'
+import BoardSettings    from '../components/BoardSettings'
+import SelectionBar     from '../components/SelectionBar'
+import AlignmentGuides  from '../components/AlignmentGuides'
+import TextNode         from '../components/nodes/TextNode'
+import ImageNode        from '../components/nodes/ImageNode'
+import VideoNode        from '../components/nodes/VideoNode'
+import GroupBoxNode     from '../components/nodes/GroupBoxNode'
+import FileNode         from '../components/nodes/FileNode'
+import EmbedNode        from '../components/nodes/EmbedNode'
+import { useAlignmentGuides } from '../hooks/useAlignmentGuides'
+import { reparentNodes }      from '../groupUtils'
 import './CanvasEditor.css'
 
 const nodeTypes = {
@@ -32,9 +34,12 @@ const nodeTypes = {
 
 const DEFAULT_BG       = { type: 'color', color: '#0e0d0b', pattern: 'dots', patternColor: '#2a2720' }
 const DEFAULT_SETTINGS = {
-  snapToGrid: false, showMinimap: true,
-  loopVideos: false, autoplayVideos: false,
+  snapToGrid:       false,
+  showMinimap:      true,
+  loopVideos:       false,
+  autoplayVideos:   false,
   defaultNoteColor: 'Default',
+  alignmentGuides:  true,   // ← new, on by default
 }
 
 let _counter = Date.now()
@@ -55,20 +60,19 @@ function cleanNodes(ns) {
   return ns.map(({ data: { _update, _delete, _boardSettings, _openFocusMode, _triggerRename, ...rest }, ...n }) => ({ ...n, data: rest }))
 }
 
-// ── Fix any localhost src/url saved in node data ──────────────────────────────
-// When nodes were created on PC they saved "http://localhost:5000/api/media/..."
-// We replace localhost:5000 with the current ORIGIN so phone can load them too.
 function patchNodeUrls(nodes) {
   return nodes.map(n => {
     const d = { ...n.data }
-    if (d.src && d.src.includes('localhost')) {
-      d.src = d.src.replace(/http:\/\/localhost:\d+/, ORIGIN)
-    }
-    if (d.url && d.url.includes('localhost')) {
-      d.url = d.url.replace(/http:\/\/localhost:\d+/, ORIGIN)
-    }
+    if (d.src && d.src.includes('localhost')) d.src = d.src.replace(/http:\/\/localhost:\d+/, ORIGIN)
+    if (d.url && d.url.includes('localhost')) d.url = d.url.replace(/http:\/\/localhost:\d+/, ORIGIN)
     return { ...n, data: d }
   })
+}
+
+// Returns the next z-index above all current nodes
+function nextZIndex(nodes) {
+  const max = nodes.reduce((m, n) => Math.max(m, typeof n.zIndex === 'number' ? n.zIndex : 0), 0)
+  return max + 1
 }
 
 function CanvasInner({ boardId, onBack }) {
@@ -88,7 +92,6 @@ function CanvasInner({ boardId, onBack }) {
   const ctxPosRef  = useRef(null)
   const nodesRef   = useRef([])
   const edgesRef   = useRef([])
-
   const historyRef = useRef([])
   const historyIdx = useRef(-1)
   const isUndoing  = useRef(false)
@@ -104,6 +107,10 @@ function CanvasInner({ boardId, onBack }) {
 
   const allLocked = selectedIds.length > 0 &&
     selectedIds.every(id => nodes.find(n => n.id === id)?.draggable === false)
+
+  // ── Alignment guides ───────────────────────────────────────────────────────
+  const alignEnabled = boardSettings.alignmentGuides !== false
+  const { guides, onNodeDrag, clearGuides } = useAlignmentGuides(nodes, alignEnabled)
 
   const updateNodeData = useCallback((id, patch) => {
     setNodes(ns => ns.map(n => n.id === id ? { ...n, data: { ...n.data, ...patch } } : n))
@@ -144,11 +151,10 @@ function CanvasInner({ boardId, onBack }) {
   useEffect(() => {
     boardsApi.get(boardId).then(r => {
       setBoard(r.data)
-      const s = r.data.canvas_state || {}
-      // ── Patch saved localhost URLs before attaching updaters ──
-      const patched      = patchNodeUrls(s.nodes || [])
-      const loadedNodes  = patched.map(attachUpdater)
-      const loadedEdges  = s.edges || []
+      const s           = r.data.canvas_state || {}
+      const patched     = patchNodeUrls(s.nodes || [])
+      const loadedNodes = patched.map(attachUpdater)
+      const loadedEdges = s.edges || []
       setNodes(loadedNodes)
       setEdges(loadedEdges)
       if (s.bgConfig)      setBgConfig(s.bgConfig)
@@ -214,6 +220,7 @@ function CanvasInner({ boardId, onBack }) {
     const newNode = {
       id, type,
       position: { x: fp.x - 110, y: fp.y - 60 },
+      zIndex: type === 'groupBox' ? -1 : nextZIndex(nodesRef.current),
       ...(type === 'groupBox' ? { style: { zIndex: -1 } } : {}),
       data: {
         ...data, ...extraData,
@@ -298,13 +305,25 @@ function CanvasInner({ boardId, onBack }) {
     if (files.length) handleUpload(files, { x: e.clientX, y: e.clientY })
   }, [handleUpload])
 
+  // ── Node click: bring to front ─────────────────────────────────────────────
+  const onNodeClick = useCallback((_, clickedNode) => {
+    if (clickedNode.type === 'groupBox') return  // groups always stay behind
+    setNodes(ns => ns.map(n =>
+      n.id === clickedNode.id
+        ? { ...n, zIndex: nextZIndex(ns) }
+        : n
+    ))
+  }, [])
+
+  // ── Node drag stop: reparent + clear guides ────────────────────────────────
   const onNodeDragStop = useCallback((_, draggedNode) => {
+    clearGuides()
     setNodes(ns => {
       const next = reparentNodes(draggedNode, ns)
       pushHistory(next, edgesRef.current)
       return next
     })
-  }, [pushHistory])
+  }, [pushHistory, clearGuides])
 
   const focusNode = useCallback((id) => {
     const n = getNode(id)
@@ -332,6 +351,7 @@ function CanvasInner({ boardId, onBack }) {
           id, type: 'groupBox',
           position: { x: x1, y: y1 },
           style: { zIndex: -1 },
+          zIndex: -1,
           width: x2-x1, height: y2-y1,
           data: {
             label: 'Group', color: '#c9a96e',
@@ -368,6 +388,7 @@ function CanvasInner({ boardId, onBack }) {
       return {
         ...n, id, selected: false,
         position: { x: n.position.x + 30, y: n.position.y + 30 },
+        zIndex: nextZIndex(nodesRef.current),
         data: {
           ...n.data,
           _update:        (patch) => updateNodeData(id, patch),
@@ -437,7 +458,9 @@ function CanvasInner({ boardId, onBack }) {
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
+          onNodeDrag={onNodeDrag}
           onNodeDragStop={onNodeDragStop}
+          onNodeClick={onNodeClick}
           nodeTypes={nodeTypes}
           onPaneContextMenu={onPaneContextMenu}
           onPaneClick={() => setCtxMenu(null)}
@@ -449,6 +472,7 @@ function CanvasInner({ boardId, onBack }) {
           snapToGrid={boardSettings.snapToGrid}
           snapGrid={[16, 16]}
           style={{ background: 'transparent' }}
+          elevateNodesOnSelect={false}
         >
           {pattern !== 'none' && (
             <Background variant={variantMap[pattern] || 'dots'} color={patternColor} gap={24} size={1} />
@@ -458,6 +482,8 @@ function CanvasInner({ boardId, onBack }) {
             <MiniMap nodeColor={() => '#3d3930'} maskColor="rgba(14,13,11,0.75)"
               style={{ background: 'var(--surface)', border: '1px solid var(--border2)', borderRadius: 8 }} />
           )}
+          {/* Alignment guides overlay — inside ReactFlow so it has access to viewport */}
+          <AlignmentGuides guides={guides} />
         </ReactFlow>
 
         <SelectionBar
