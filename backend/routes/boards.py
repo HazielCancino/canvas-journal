@@ -189,13 +189,16 @@ def duplicate_board(board_id):
 
     # Duplicate MediaFile records
     for mf in src.media_files:
+        new_file_path = os.path.join(dst_dir, os.path.basename(mf.file_path))
+        new_url = f'/api/media/{new_board.id}/file/{mf.filename}' if hasattr(mf, 'url') else None # Optional handling if url were stored, right now it's dynamic in to_dict()
+        
         new_mf = MediaFile(
             board_id=new_board.id,
             filename=mf.filename,
             original_name=mf.original_name,
             file_type=mf.file_type,
             mime_type=mf.mime_type,
-            file_path=mf.file_path.replace(str(board_id), str(new_board.id)),
+            file_path=new_file_path,
             file_size=mf.file_size,
         )
         db.session.add(new_mf)

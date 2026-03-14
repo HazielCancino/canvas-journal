@@ -17,7 +17,11 @@ def get_file_type(filename):
     for ftype, exts in ALLOWED_EXTENSIONS.items():
         if ext in exts:
             return ftype
-    return 'file'
+    return None
+
+def allowed_file(filename):
+    ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+    return any(ext in exts for exts in ALLOWED_EXTENSIONS.values())
 
 def ensure_upload_dir(board_id):
     path = os.path.join(current_app.config['UPLOAD_FOLDER'], str(board_id))
@@ -34,9 +38,12 @@ def upload_file(board_id):
         return jsonify({'error': 'Empty filename'}), 400
 
     original_name = file.filename
+    if not allowed_file(original_name):
+        return jsonify({'error': 'File type not allowed'}), 400
+
     ext = original_name.rsplit('.', 1)[-1].lower() if '.' in original_name else ''
     unique_name = f"{uuid.uuid4().hex}.{ext}"
-    file_type   = get_file_type(original_name)
+    file_type   = get_file_type(original_name) or 'file'
     mime_type   = mimetypes.guess_type(original_name)[0] or 'application/octet-stream'
 
     upload_dir = ensure_upload_dir(board_id)
@@ -54,11 +61,21 @@ def upload_file(board_id):
     return jsonify(media.to_dict()), 201
 
 
+@media_bp.route('/<int:board_id>/file/<filename>', methods=['GET'])
+def serve_board_file(board_id, filename):
+    safe_filename = os.path.basename(filename) # Prevent directory traversal
+    file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], str(board_id), safe_filename)
+    if os.path.isfile(file_path):
+        return send_file(file_path)
+    return jsonify({'error': 'File not found'}), 404
+
 @media_bp.route('/file/<filename>', methods=['GET'])
-def serve_file(filename):
+def serve_legacy_file(filename):
+    """Fallback for old URLs that don't include the board ID. Loops through all dirs as a slow path."""
     upload_root = current_app.config['UPLOAD_FOLDER']
+    safe_filename = os.path.basename(filename)
     for board_dir in os.listdir(upload_root):
-        candidate = os.path.join(upload_root, board_dir, filename)
+        candidate = os.path.join(upload_root, board_dir, safe_filename)
         if os.path.isfile(candidate):
             return send_file(candidate)
     return jsonify({'error': 'File not found'}), 404

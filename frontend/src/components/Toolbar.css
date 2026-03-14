@@ -5,7 +5,9 @@
   padding: 0 20px;
   height: 52px;
   border-bottom: 1px solid var(--border);
-  background: var(--bg);
+  background: rgba(14, 13, 11, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   flex-shrink: 0;
   z-index: 100;
   gap: 16px;

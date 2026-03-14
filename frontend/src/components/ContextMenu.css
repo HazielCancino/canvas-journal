@@ -1,6 +1,8 @@
 .ctx-menu {
   position: fixed;
-  background: var(--surface);
+  background: rgba(14, 13, 11, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border2);
   border-radius: 11px;
   padding: 6px;

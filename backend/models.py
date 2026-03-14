@@ -75,7 +75,7 @@ class MediaFile(db.Model):
             'original_name': self.original_name,
             'file_type':     self.file_type,
             'mime_type':     self.mime_type,
-            'url':           f'/api/media/file/{self.filename}',
+            'url':           f'/api/media/{self.board_id}/file/{self.filename}',
             'file_size':     self.file_size,
             'created_at':    self.created_at.isoformat() if self.created_at else None,
         }

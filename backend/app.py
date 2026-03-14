@@ -18,6 +18,9 @@ def create_app():
 
     with app.app_context():
         db.create_all()
+        # Ensure upload directories exist
+        os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+        os.makedirs(os.path.join(app.config['UPLOAD_FOLDER'], 'covers'), exist_ok=True)
 
     return app
 
