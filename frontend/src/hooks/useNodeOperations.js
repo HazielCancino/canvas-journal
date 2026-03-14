@@ -18,7 +18,8 @@ export function useNodeOperations({
   updateNodeData,
   selectedIds,
   setSelectedIds,
-  boardSettings
+  boardSettings,
+  moveToTrash
 }) {
   const { screenToFlowPosition } = useReactFlow();
 
@@ -33,10 +34,11 @@ export function useNodeOperations({
     }
 
     const newNode = {
-      id, type,
+      id,
+      type,
       position: { x: fp.x - 110, y: fp.y - 60 },
-      zIndex: type === 'groupBox' ? -1 : nextZIndex(nodesRef.current),
-      ...(type === 'groupBox' ? { style: { zIndex: -1 } } : {}),
+      selected: true,
+      zIndex: type === 'groupBox' ? -1 : 1,
       data: {
         ...data, ...extraData,
         _update: (patch) => updateNodeData(id, patch),
@@ -48,7 +50,7 @@ export function useNodeOperations({
 
     setNodes(ns => {
       const next = [...ns, newNode];
-      pushHistory(next, edgesRef.current);
+      pushHistory(next, edgesRef.current, `Added ${type.replace('Note','')}`);
       return next;
     });
 
@@ -60,44 +62,61 @@ export function useNodeOperations({
     const sel = nodes.filter(n => selectedIds.includes(n.id));
     
     // Safety check with fallbacks if measurements aren't there yet
-    const xs = sel.map(n => n.position.x);
-    const ys = sel.map(n => n.position.y);
+    const xs = sel.map(n => n.positionAbsolute?.x ?? n.position.x);
+    const ys = sel.map(n => n.positionAbsolute?.y ?? n.position.y);
     const x1 = Math.min(...xs) - 20;
     const y1 = Math.min(...ys) - 40;
     const x2 = Math.max(...xs.map((x, i) => x + (sel[i].measured?.width || 200))) + 20;
     const y2 = Math.max(...ys.map((y, i) => y + (sel[i].measured?.height || 100))) + 20;
     
     const id = uid();
+    const newGroup = {
+      id,
+      type: 'groupBox',
+      position: { x: x1, y: y1 },
+      selected: true,
+      style: { width: Math.max(120, x2 - x1), height: Math.max(80, y2 - y1) },
+      zIndex: -1,
+      data: {
+        label: 'Group', color: '#c9a96e',
+        _update: (patch) => updateNodeData(id, patch),
+        _delete: () => setNodes(prev => prev.filter(n => n.id !== id)),
+        _openFocusMode: () => {},
+        _triggerRename: () => updateNodeData(id, { _renameTrigger: Date.now() }),
+      },
+    };
+
     setNodes(ns => {
-      const next = [
-        {
-          id, type: 'groupBox',
-          position: { x: x1, y: y1 },
-          style: { zIndex: -1 },
-          zIndex: -1,
-          width: x2 - x1, height: y2 - y1,
-          data: {
-            label: 'Group', color: '#c9a96e',
-            _update: (patch) => updateNodeData(id, patch),
-            _delete: () => setNodes(prev => prev.filter(n => n.id !== id)),
-            _openFocusMode: () => {},
-            _triggerRename: () => updateNodeData(id, { _renameTrigger: Date.now() }),
-          },
-        },
-        ...ns,
-      ];
-      pushHistory(next, edgesRef.current);
+      const updatedNodes = ns.map(n => {
+        if (selectedIds.includes(n.id)) {
+          const absX = n.positionAbsolute?.x ?? n.position.x;
+          const absY = n.positionAbsolute?.y ?? n.position.y;
+          return {
+            ...n,
+            parentId: id,
+            position: { x: absX - x1, y: absY - y1 },
+            zIndex: 1,
+          }
+        }
+        return n;
+      });
+      const next = [newGroup, ...updatedNodes];
+      pushHistory(next, edgesRef.current, 'Grouped nodes');
       return next;
     });
-  }, [selectedIds, nodes, updateNodeData, pushHistory, setNodes, edgesRef]);
+    setSelectedIds([id]);
+  }, [selectedIds, nodes, updateNodeData, pushHistory, setNodes, edgesRef, setSelectedIds]);
 
   const deleteSelected = useCallback(() => {
+    const sel = nodes.filter(n => selectedIds.includes(n.id));
+    if (sel.length) moveToTrash(sel);
+
     const newEdges = edgesRef.current.filter(e =>
       !selectedIds.includes(e.source) && !selectedIds.includes(e.target)
     );
     setNodes(ns => {
       const next = ns.filter(n => !selectedIds.includes(n.id));
-      pushHistory(next, newEdges);
+      pushHistory(next, newEdges, 'Deleted nodes');
       return next;
     });
     setEdges(newEdges);
@@ -123,7 +142,7 @@ export function useNodeOperations({
     });
     setNodes(ns => {
       const next = [...ns, ...newNodes];
-      pushHistory(next, edgesRef.current);
+      pushHistory(next, edgesRef.current, 'Duplicated nodes');
       return next;
     });
   }, [selectedIds, nodes, updateNodeData, pushHistory, setNodes, edgesRef]);

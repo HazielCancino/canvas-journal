@@ -106,6 +106,28 @@
 }
 .bs-toggle.bs-toggle-on .bs-toggle-thumb { transform: translateX(16px); }
 
+/* ── Form Inputs ── */
+.bs-select {
+  background: var(--surface2); border: 1px solid var(--border2);
+  color: var(--text-dim); padding: 4px 8px; border-radius: 6px;
+  font-family: inherit; font-size: 12px; cursor: pointer;
+  outline: none; transition: border 0.2s;
+}
+.bs-select:hover { border-color: var(--border); }
+.bs-select:focus { border-color: var(--accent); }
+
+/* ── Theme Presets ── */
+.bs-theme-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; width: 100%; }
+.bs-theme-btn {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 4px; padding: 12px 6px; border-radius: 8px;
+  background: var(--surface2); border: 1px solid var(--border2);
+  cursor: pointer; transition: all 0.15s;
+}
+.bs-theme-btn:hover { background: var(--surface); border-color: var(--accent); transform: translateY(-2px); }
+.bs-theme-icon { font-size: 18px; }
+.bs-theme-label { font-size: 10px; color: var(--text-dim); font-family: 'DM Sans', sans-serif; }
+
 /* ── Note color grid ── */
 .bs-note-color-grid {
   display: grid; grid-template-columns: repeat(3, 1fr);
@@ -148,7 +170,20 @@
 .bs-group-name { flex: 1; }
 .bs-group-arrow { color: var(--text-faint); font-size: 11px; }
 
-/* ── Stats ── */
+/* ── Stats / Trash ── */
+.bs-trash-btn {
+  background: none; border: none; color: var(--text-faint); font-size: 13px;
+  cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center;
+  border-radius: 4px; transition: all 0.1s;
+}
+.bs-trash-btn:hover { background: rgba(255, 60, 60, 0.2); color: var(--red); }
+.bs-restore-btn {
+  background: none; border: none; color: var(--text-faint); font-size: 13px;
+  cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center;
+  border-radius: 4px; transition: all 0.1s;
+}
+.bs-restore-btn:hover { background: rgba(60, 255, 120, 0.2); color: var(--green); }
+
 .bs-stats { display: flex; flex-direction: column; gap: 5px; }
 .bs-stat-row {
   display: flex; align-items: center; justify-content: space-between;

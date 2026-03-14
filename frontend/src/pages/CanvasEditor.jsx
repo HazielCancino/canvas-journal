@@ -58,7 +58,10 @@ function isUrl(str) {
 }
 
 function cleanNodes(ns) {
-  return ns.map(({ data: { _update, _delete, _boardSettings, _openFocusMode, _triggerRename, ...rest }, ...n }) => ({ ...n, data: rest }))
+  return ns.map(({ data = {}, ...n }) => {
+    const { _update, _delete, _boardSettings, _openFocusMode, _triggerRename, ...rest } = data
+    return { ...n, data: rest }
+  })
 }
 
 function CanvasInner({ boardId, onBack }) {
@@ -94,28 +97,53 @@ function CanvasInner({ boardId, onBack }) {
     setNodes(ns => ns.map(n => n.id === id ? { ...n, data: { ...n.data, ...patch } } : n))
   }, [setNodes])
 
+  const moveToTrash = useCallback((nodeList) => {
+    setBoardSettings(bs => ({
+      ...bs,
+      trash: [...(bs.trash || []), ...cleanNodes(nodeList)]
+    }))
+  }, [])
+
+  const emptyTrash = useCallback(() => {
+    setBoardSettings(bs => ({ ...bs, trash: [] }))
+  }, [])
+
   const attachUpdater = useCallback((node) => ({
     ...node,
     data: {
       ...node.data,
       _update:        (patch) => updateNodeData(node.id, patch),
-      _delete:        () => setNodes(ns => ns.filter(n => n.id !== node.id)),
+      _delete:        () => {
+        moveToTrash([node])
+        setNodes(ns => ns.filter(n => n.id !== node.id))
+      },
       _openFocusMode: () => updateNodeData(node.id, { _focusTrigger: Date.now() }),
       _triggerRename: () => updateNodeData(node.id, { _renameTrigger: Date.now() }),
     },
-  }), [updateNodeData, setNodes])
+  }), [updateNodeData, moveToTrash, setNodes])
 
   // ── Custom Hooks ─────────────────────────────────────────────────────────
-  const { pushHistory, initHistory } = useHistoryStack({ 
+  const { pushHistory, initHistory, historyItems, currentIndex, jumpToHistory } = useHistoryStack({ 
     setNodes, setEdges, attachUpdater, cleanNodes 
   })
+
+  const restoreNode = useCallback((trashedNode) => {
+    const restored = attachUpdater(trashedNode)
+    setBoardSettings(bs => ({ ...bs, trash: (bs.trash || []).filter(t => t.id !== trashedNode.id) }))
+    setNodes(ns => {
+      const next = [...ns, restored]
+      pushHistory(next, edgesRef.current, `Restored node`)
+      return next
+    })
+  }, [attachUpdater, setNodes, pushHistory])
 
   const {
     addNode, groupSelected, deleteSelected, duplicateSelected,
     toggleLockSelected, bringToFront
   } = useNodeOperations({
     nodes, setNodes, edgesRef, setEdges, pushHistory,
-    updateNodeData, selectedIds, setSelectedIds, boardSettings
+    updateNodeData, selectedIds, setSelectedIds, boardSettings,
+    moveToTrash
   })
 
   const allLocked = selectedIds.length > 0 &&
@@ -126,13 +154,29 @@ function CanvasInner({ boardId, onBack }) {
 
   useEffect(() => {
     setNodes(ns => ns.map(n =>
-      n.type === 'videoNote' ? { ...n, data: { ...n.data, _boardSettings: boardSettings } } : n
+      ['videoNote', 'imageNote', 'fileNote'].includes(n.type)
+        ? { ...n, data: { ...n.data, _boardSettings: boardSettings } } 
+        : n
     ))
-  }, [boardSettings.loopVideos, boardSettings.autoplayVideos, setNodes])
+  }, [boardSettings.loopVideos, boardSettings.autoplayVideos, boardSettings.showCaptions, setNodes])
 
   useEffect(() => {
     if (boardSettings.resetZoom && !loading) fitView({ duration: 400 })
   }, [boardSettings.resetZoom, fitView, loading])
+
+  // Map existing edges to updated global edgeStyle whenever it changes
+  useEffect(() => {
+    if (loading) return
+    const targetType = boardSettings.edgeStyle || 'bezier'
+    setEdges(es => {
+      let changed = false
+      const next = es.map(e => {
+        if (e.type !== targetType) { changed = true; return { ...e, type: targetType } }
+        return e
+      })
+      return changed ? next : es
+    })
+  }, [boardSettings.edgeStyle, setEdges, loading])
 
   // ── Initialization ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -201,12 +245,21 @@ function CanvasInner({ boardId, onBack }) {
         : null
       const name = file.name || ''
 
-      if (name.endsWith('.txt') || name.endsWith('.md')) {
+      const textExts = ['.txt', '.md', '.json', '.js', '.jsx', '.ts', '.tsx', '.py', '.css', '.html', '.java', '.cpp', '.sql']
+      if (textExts.some(ext => name.endsWith(ext))) {
         try {
           const text = await new Promise((res, rej) => {
             const r = new FileReader(); r.onload = e => res(e.target.result); r.onerror = rej; r.readAsText(file)
           })
-          addNode('textNote', { title: name.replace(/\.(txt|md)$/, ''), text }, sp, nodesRef)
+          
+          const ext = name.split('.').pop()
+          const codeLangs = ['json', 'py', 'js', 'html', 'css', 'ts', 'jsx', 'tsx', 'java', 'cpp', 'sql']
+          const langMap = { py: 'python', js: 'javascript', ts: 'typescript' }
+          const formattedText = codeLangs.includes(ext) 
+            ? `\`\`\`${langMap[ext] || ext}\n${text}\n\`\`\`` 
+            : text
+
+          addNode('textNote', { title: name, text: formattedText }, sp, nodesRef)
           continue
         } catch(e) { console.error(e); notify(`Failed to read ${name}`, 'error') }
       }
@@ -271,7 +324,7 @@ function CanvasInner({ boardId, onBack }) {
     clearGuides()
     setNodes(ns => {
       const next = reparentNodes(draggedNode, ns)
-      pushHistory(next, edgesRef.current)
+      pushHistory(next, edgesRef.current, `Moved node`)
       return next
     })
   }, [pushHistory, clearGuides, setNodes])
@@ -293,11 +346,12 @@ function CanvasInner({ boardId, onBack }) {
 
   const onConnect = useCallback((p) => {
     setEdges(es => {
-      const next = addEdge({ ...p, type: 'smoothstep' }, es)
-      pushHistory(nodesRef.current, next)
+      const type = boardSettings.edgeStyle || 'bezier'
+      const next = addEdge({ ...p, type }, es)
+      pushHistory(nodesRef.current, next, `Connected nodes`)
       return next
     })
-  }, [pushHistory, setEdges])
+  }, [pushHistory, setEdges, boardSettings.edgeStyle])
 
   const onPaneContextMenu = useCallback((e) => {
     e.preventDefault()
@@ -317,6 +371,9 @@ function CanvasInner({ boardId, onBack }) {
   const patternColor = bgConfig?.patternColor || '#2a2720'
   const variantMap   = { dots: 'dots', lines: 'lines', cross: 'cross' }
 
+  // Temporarily disable GroupBox rendering while preserving state
+  const visibleNodes = nodes.filter(n => n.type !== 'groupBox')
+
   return (
     <div className="canvas-editor" onPointerDown={() => setCtxMenu(null)}>
       <Toolbar
@@ -331,12 +388,12 @@ function CanvasInner({ boardId, onBack }) {
 
       <div
         className="canvas-area"
-        style={getBgStyle(bgConfig)}
+        style={{ ...getBgStyle(bgConfig), fontFamily: boardSettings.fontFamily || "'DM Sans', sans-serif" }}
         onDrop={onDrop}
         onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy' }}
       >
         <ReactFlow
-          nodes={nodes} edges={edges}
+          nodes={visibleNodes} edges={edges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
@@ -394,6 +451,7 @@ function CanvasInner({ boardId, onBack }) {
       </div>
 
       <BoardSettings
+        boardId={boardId}
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         settings={boardSettings}
@@ -402,6 +460,11 @@ function CanvasInner({ boardId, onBack }) {
         onFocusNode={focusNode}
         bgConfig={bgConfig}
         onBgChange={setBgConfig}
+        onRestoreNode={restoreNode}
+        onEmptyTrash={emptyTrash}
+        historyItems={historyItems}
+        currentIndex={currentIndex}
+        jumpToHistory={jumpToHistory}
       />
     </div>
   )

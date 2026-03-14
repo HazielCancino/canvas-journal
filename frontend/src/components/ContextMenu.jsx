@@ -52,7 +52,6 @@ export default function ContextMenu({ x, y, onClose, onAddText, onAddGroup, onAd
 
       {item('✎', 'Text note',    onAddText)}
       {item('⬆', 'Upload media', onAddMedia)}
-      {item('▭', 'Group box',    onAddGroup)}
 
       <div className="ctx-divider" />
 

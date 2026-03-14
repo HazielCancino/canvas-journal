@@ -74,15 +74,15 @@ export default function GroupBoxNode({ data, selected }) {
         />
 
         {/* ── Header (drag handle) ── */}
-        <div className="group-header" onPointerDown={e => e.stopPropagation()}>
+        <div className="group-header">
 
           {/* Icon picker */}
           <div className="group-icon-wrap" ref={iconRef}>
-            <button className="group-icon-btn" onClick={() => setShowIconPick(v => !v)} title="Set icon">
+            <button className="group-icon-btn nodrag" onClick={() => setShowIconPick(v => !v)} title="Set icon">
               {icon || <span className="group-icon-placeholder">◈</span>}
             </button>
             {showIconPick && (
-              <div className="group-icon-picker">
+              <div className="group-icon-picker nodrag">
                 {ICONS.map((ic, i) => (
                   <button key={i} className={`icon-opt ${ic===icon?'active':''}`}
                     onClick={() => { data._update?.({ icon: ic }); setShowIconPick(false) }}>
@@ -109,7 +109,7 @@ export default function GroupBoxNode({ data, selected }) {
 
           {/* Controls — only when selected */}
           {selected && (
-            <div className="group-controls" onPointerDown={e => e.stopPropagation()}>
+            <div className="group-controls nodrag">
               {/* Colors */}
               <div className="group-color-picker">
                 {COLORS.map(c => (
@@ -132,7 +132,7 @@ export default function GroupBoxNode({ data, selected }) {
               {/* Opacity — labeled clearly */}
               <div className="group-opacity-row">
                 <span className="group-opacity-label" title="Background fill opacity">fill opacity</span>
-                <input type="range" className="group-opacity-slider"
+                <input type="range" className="group-opacity-slider nodrag"
                   min="0" max="0.35" step="0.01" value={opacity}
                   onChange={e => data._update?.({ opacity: parseFloat(e.target.value) })} />
                 <span className="group-opacity-val">{Math.round(opacity*100)}%</span>

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Handle, Position, NodeResizer } from '@xyflow/react'
+import { resolveUrl } from '../../api'
 import NodeWrapper from './NodeWrapper'
 import './nodes.css'
 
@@ -45,32 +46,34 @@ export default function ImageNode({ data, selected }) {
         {/* Image fills all remaining vertical space */}
         <div className="image-node-img-wrap">
           <img
-            src={data.src}
+            src={resolveUrl(data.src)}
             alt={data.originalName || ''}
             draggable={false}
             style={{ objectFit: fit }}
           />
         </div>
 
-        {editingCaption ? (
-          <div className="image-caption-row">
-            <input
-              className="input" style={{ fontSize: 11, width: '100%' }}
-              value={caption}
-              onChange={e => setCaption(e.target.value)}
-              onBlur={saveCaption}
-              onKeyDown={e => e.key === 'Enter' && saveCaption()}
-              onPointerDown={e => e.stopPropagation()}
-              autoFocus
-              placeholder="Add caption…"
-            />
-          </div>
-        ) : (
-          <div className="image-caption-row" onPointerDown={e => e.stopPropagation()} onClick={() => setEditCaption(true)}>
-            {data.caption
-              ? <span className="image-caption">{data.caption}</span>
-              : <span className="empty-hint small">+ caption</span>}
-          </div>
+        {data._boardSettings?.showCaptions !== false && (
+          editingCaption ? (
+            <div className="image-caption-row">
+              <input
+                className="input" style={{ fontSize: 11, width: '100%' }}
+                value={caption}
+                onChange={e => setCaption(e.target.value)}
+                onBlur={saveCaption}
+                onKeyDown={e => e.key === 'Enter' && saveCaption()}
+                onPointerDown={e => e.stopPropagation()}
+                autoFocus
+                placeholder="Add caption…"
+              />
+            </div>
+          ) : (
+            <div className="image-caption-row" onPointerDown={e => e.stopPropagation()} onClick={() => setEditCaption(true)}>
+              {data.caption
+                ? <span className="image-caption">{data.caption}</span>
+                : <span className="empty-hint small">+ caption</span>}
+            </div>
+          )
         )}
       </div>
     </NodeWrapper>

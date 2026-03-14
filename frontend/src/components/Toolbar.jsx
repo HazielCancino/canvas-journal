@@ -1,5 +1,4 @@
 import { useRef } from 'react'
-import CanvasBackground from './CanvasBackground'
 import './Toolbar.css'
 
 export default function Toolbar({
@@ -36,14 +35,8 @@ export default function Toolbar({
           <span className="tool-icon">⬆</span>
           <span className="tool-label">Media</span>
         </button>
-        <button className="btn ghost toolbar-tool" onClick={onAddGroup} title="Add group box">
-          <span className="tool-icon">▭</span>
-          <span className="tool-label">Group</span>
-        </button>
 
         <div className="toolbar-divider" />
-
-        <CanvasBackground boardId={boardId} bgConfig={bgConfig} onChange={onBgChange} />
 
         {/* Accept text/doc formats in addition to media */}
         <input

@@ -1,4 +1,5 @@
 import { Handle, Position, NodeResizer } from '@xyflow/react'
+import { resolveUrl } from '../../api'
 import NodeWrapper from './NodeWrapper'
 import './nodes.css'
 
@@ -22,7 +23,7 @@ export default function VideoNode({ data, selected }) {
         {/* Video fills all remaining vertical space */}
         <div className="video-wrap">
           <video
-            src={data.src}
+            src={resolveUrl(data.src)}
             controls
             loop={loop}
             autoPlay={auto}

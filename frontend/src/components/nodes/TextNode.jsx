@@ -2,6 +2,9 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { Handle, Position, NodeResizer } from '@xyflow/react'
 import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import NodeWrapper from './NodeWrapper'
 import './nodes.css'
 import './TextNode.css'
@@ -336,10 +339,29 @@ function InteractivePreview({ text, onToggle, fontCls }) {
     },
     // Don't render the raw input elements from GFM
     input() { return null },
+    // Code blocks with syntax highlighting
+    code({ node, inline, className, children, ...props }) {
+      const match = /language-(\w+)/.exec(className || '')
+      return !inline && match ? (
+        <SyntaxHighlighter
+          style={vscDarkPlus}
+          language={match[1]}
+          PreTag="div"
+          customStyle={{ margin: '8px 0', borderRadius: '6px', fontSize: '12px' }}
+          {...props}
+        >
+          {String(children).replace(/\n$/, '')}
+        </SyntaxHighlighter>
+      ) : (
+        <code className={className} {...props}>
+          {children}
+        </code>
+      )
+    }
   }
 
   return (
-    <ReactMarkdown components={components}>
+    <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
       {text}
     </ReactMarkdown>
   )

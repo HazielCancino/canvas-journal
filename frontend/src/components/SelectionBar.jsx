@@ -14,13 +14,6 @@ export default function SelectionBar({
 
       <div className="sel-divider" />
 
-      {/* Group only makes sense with 2+ nodes */}
-      {count >= 2 && (
-        <button className="sel-btn" title="Wrap in a group box" onClick={onGroup}>
-          <span>▭</span> Group
-        </button>
-      )}
-
       <button className="sel-btn" title="Duplicate" onClick={onDuplicate}>
         <span>⧉</span> Duplicate
       </button>
