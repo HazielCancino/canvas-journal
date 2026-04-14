@@ -5,7 +5,7 @@ export default function Toolbar({
   board, saving, lastSaved, onBack,
   onAddText, onAddGroup, onUpload,
   bgConfig, onBgChange, boardId,
-  onOpenSettings,
+  onOpenSettings, onToggleOutline,
 }) {
   const fileRef = useRef()
 
@@ -54,6 +54,14 @@ export default function Toolbar({
               ? <span className="save-ok">✓ {fmtTime(lastSaved)}</span>
               : null}
         </span>
+        <button
+          className="btn ghost toolbar-tool"
+          onClick={onToggleOutline}
+          title="Toggle Outline (Sidebar)"
+        >
+          <span className="tool-icon">📋</span>
+          <span className="tool-label">Outline</span>
+        </button>
         <button
           className="btn ghost toolbar-tool toolbar-settings"
           onClick={onOpenSettings}

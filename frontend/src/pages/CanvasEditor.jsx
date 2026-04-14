@@ -9,41 +9,45 @@ import '@xyflow/react/dist/style.css'
 
 import { boardsApi, mediaApi } from '../api'
 import { notify } from '../components/Toast'
-import Toolbar          from '../components/Toolbar'
-import ContextMenu      from '../components/ContextMenu'
-import BoardSettings    from '../components/BoardSettings'
-import SelectionBar     from '../components/SelectionBar'
-import AlignmentGuides  from '../components/AlignmentGuides'
-import TextNode         from '../components/nodes/TextNode'
-import ImageNode        from '../components/nodes/ImageNode'
-import VideoNode        from '../components/nodes/VideoNode'
-import GroupBoxNode     from '../components/nodes/GroupBoxNode'
-import FileNode         from '../components/nodes/FileNode'
-import EmbedNode        from '../components/nodes/EmbedNode'
+import Toolbar from '../components/Toolbar'
+import ContextMenu from '../components/ContextMenu'
+import BoardSettings from '../components/BoardSettings'
+import SelectionBar from '../components/SelectionBar'
+import AlignmentGuides from '../components/AlignmentGuides'
+import CommandPalette from '../components/CommandPalette'
+import OutlineDrawer from '../components/OutlineDrawer'
+import TextNode from '../components/nodes/TextNode'
+import ImageNode from '../components/nodes/ImageNode'
+import VideoNode from '../components/nodes/VideoNode'
+import GroupBoxNode from '../components/nodes/GroupBoxNode'
+import FileNode from '../components/nodes/FileNode'
+import EmbedNode from '../components/nodes/EmbedNode'
 
 import { useAlignmentGuides } from '../hooks/useAlignmentGuides'
-import { useHistoryStack }    from '../hooks/useHistoryStack'
-import { useNodeOperations }  from '../hooks/useNodeOperations'
-import { reparentNodes }      from '../groupUtils'
+import { useHistoryStack } from '../hooks/useHistoryStack'
+import { useNodeOperations } from '../hooks/useNodeOperations'
+import { reparentNodes } from '../groupUtils'
 import './CanvasEditor.css'
 
 const nodeTypes = {
-  textNote:  TextNode,
+  textNote: TextNode,
   imageNote: ImageNode,
   videoNote: VideoNode,
-  groupBox:  GroupBoxNode,
-  fileNote:  FileNode,
+  groupBox: GroupBoxNode,
+  fileNote: FileNode,
   embedNote: EmbedNode,
 }
 
-const DEFAULT_BG       = { type: 'color', color: '#0e0d0b', pattern: 'dots', patternColor: '#2a2720' }
+const DEFAULT_BG = {
+  type: 'color', color: '#0e0d0b', pattern: 'dots', patternColor: '#2a2720',
+}
 const DEFAULT_SETTINGS = {
-  snapToGrid:       false,
-  showMinimap:      true,
-  loopVideos:       false,
-  autoplayVideos:   false,
+  snapToGrid: false,
+  showMinimap: true,
+  loopVideos: false,
+  autoplayVideos: false,
   defaultNoteColor: 'Default',
-  alignmentGuides:  true,
+  alignmentGuides: true,
 }
 
 function getBgStyle(bg) {
@@ -64,24 +68,28 @@ function cleanNodes(ns) {
   })
 }
 
+// ── Inner canvas component ───────────────────────────────────────────────────
 function CanvasInner({ boardId, onBack }) {
-  const [board, setBoard]                  = useState(null)
-  const [loading, setLoading]              = useState(true)
-  const [nodes, setNodes, onNodesChange]   = useNodesState([])
-  const [edges, setEdges, onEdgesChange]   = useEdgesState([])
-  const [bgConfig, setBgConfig]            = useState(DEFAULT_BG)
-  const [boardSettings, setBoardSettings]  = useState(DEFAULT_SETTINGS)
-  const [saving, setSaving]                = useState(false)
-  const [lastSaved, setLastSaved]          = useState(null)
-  const [ctxMenu, setCtxMenu]              = useState(null)
-  const [settingsOpen, setSettingsOpen]    = useState(false)
-  const [selectedIds, setSelectedIds]      = useState([])
+  const [board, setBoard] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [nodes, setNodes, onNodesChange] = useNodesState([])
+  const [edges, setEdges, onEdgesChange] = useEdgesState([])
+  const [bgConfig, setBgConfig] = useState(DEFAULT_BG)
+  const [boardSettings, setBoardSettings] = useState(DEFAULT_SETTINGS)
+  const [saving, setSaving] = useState(false)
+  const [lastSaved, setLastSaved] = useState(null)
+  const [ctxMenu, setCtxMenu] = useState(null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [selectedIds, setSelectedIds] = useState([])
+  const [paletteOpen, setPaletteOpen] = useState(false)
+  const [outlineOpen, setOutlineOpen] = useState(false)
 
-  const saveTimer  = useRef(null)
+  const saveTimer = useRef(null)
   const ctxFileRef = useRef()
-  const ctxPosRef  = useRef(null)
-  const nodesRef   = useRef([])
-  const edgesRef   = useRef([])
+  const ctxPosRef = useRef(null)
+  const nodesRef = useRef([])
+  const edgesRef = useRef([])
+  const dragHistoryTimer = useRef(null)
 
   useEffect(() => { nodesRef.current = nodes }, [nodes])
   useEffect(() => { edgesRef.current = edges }, [edges])
@@ -92,16 +100,13 @@ function CanvasInner({ boardId, onBack }) {
     onChange: ({ nodes: sn }) => setSelectedIds(sn.map(n => n.id)),
   })
 
-  // ── Node Data Updater ──────────────────────────────────────────────────────
+  // ── Node data updater ──────────────────────────────────────────────────────
   const updateNodeData = useCallback((id, patch) => {
     setNodes(ns => ns.map(n => n.id === id ? { ...n, data: { ...n.data, ...patch } } : n))
   }, [setNodes])
 
   const moveToTrash = useCallback((nodeList) => {
-    setBoardSettings(bs => ({
-      ...bs,
-      trash: [...(bs.trash || []), ...cleanNodes(nodeList)]
-    }))
+    setBoardSettings(bs => ({ ...bs, trash: [...(bs.trash || []), ...cleanNodes(nodeList)] }))
   }, [])
 
   const emptyTrash = useCallback(() => {
@@ -112,38 +117,25 @@ function CanvasInner({ boardId, onBack }) {
     ...node,
     data: {
       ...node.data,
-      _update:        (patch) => updateNodeData(node.id, patch),
-      _delete:        () => {
-        moveToTrash([node])
-        setNodes(ns => ns.filter(n => n.id !== node.id))
-      },
+      _update: (patch) => updateNodeData(node.id, patch),
+      _delete: () => { moveToTrash([node]); setNodes(ns => ns.filter(n => n.id !== node.id)) },
       _openFocusMode: () => updateNodeData(node.id, { _focusTrigger: Date.now() }),
       _triggerRename: () => updateNodeData(node.id, { _renameTrigger: Date.now() }),
     },
   }), [updateNodeData, moveToTrash, setNodes])
 
-  // ── Custom Hooks ─────────────────────────────────────────────────────────
-  const { pushHistory, initHistory, historyItems, currentIndex, jumpToHistory } = useHistoryStack({ 
-    setNodes, setEdges, attachUpdater, cleanNodes 
+  // ── History + node operations ──────────────────────────────────────────────
+  const { pushHistory, initHistory, historyItems, currentIndex, jumpToHistory } = useHistoryStack({
+    setNodes, setEdges, attachUpdater, cleanNodes,
   })
-
-  const restoreNode = useCallback((trashedNode) => {
-    const restored = attachUpdater(trashedNode)
-    setBoardSettings(bs => ({ ...bs, trash: (bs.trash || []).filter(t => t.id !== trashedNode.id) }))
-    setNodes(ns => {
-      const next = [...ns, restored]
-      pushHistory(next, edgesRef.current, `Restored node`)
-      return next
-    })
-  }, [attachUpdater, setNodes, pushHistory])
 
   const {
     addNode, groupSelected, deleteSelected, duplicateSelected,
-    toggleLockSelected, bringToFront
+    toggleLockSelected, bringToFront,
   } = useNodeOperations({
     nodes, setNodes, edgesRef, setEdges, pushHistory,
     updateNodeData, selectedIds, setSelectedIds, boardSettings,
-    moveToTrash
+    moveToTrash,
   })
 
   const allLocked = selectedIds.length > 0 &&
@@ -152,19 +144,40 @@ function CanvasInner({ boardId, onBack }) {
   const alignEnabled = boardSettings.alignmentGuides !== false
   const { guides, onNodeDrag, clearGuides } = useAlignmentGuides(nodes, alignEnabled)
 
+  // ── focusNode — defined BEFORE any effect that references it ───────────────
+  const focusNode = useCallback((id) => {
+    const n = getNode(id)
+    if (!n) return
+    setCenter(
+      n.position.x + (n.measured?.width || 240) / 2,
+      n.position.y + (n.measured?.height || 180) / 2,
+      { zoom: 0.9, duration: 500 }
+    )
+  }, [getNode, setCenter])
+
+  const restoreNode = useCallback((trashedNode) => {
+    const restored = attachUpdater(trashedNode)
+    setBoardSettings(bs => ({ ...bs, trash: (bs.trash || []).filter(t => t.id !== trashedNode.id) }))
+    setNodes(ns => {
+      const next = [...ns, restored]
+      pushHistory(next, edgesRef.current, 'Restored node')
+      return next
+    })
+  }, [attachUpdater, setNodes, pushHistory])
+
+  // ── Board settings side-effects ────────────────────────────────────────────
   useEffect(() => {
     setNodes(ns => ns.map(n =>
       ['videoNote', 'imageNote', 'fileNote'].includes(n.type)
-        ? { ...n, data: { ...n.data, _boardSettings: boardSettings } } 
+        ? { ...n, data: { ...n.data, _boardSettings: boardSettings } }
         : n
     ))
-  }, [boardSettings.loopVideos, boardSettings.autoplayVideos, boardSettings.showCaptions, setNodes])
+  }, [boardSettings.loopVideos, boardSettings.autoplayVideos, boardSettings.showCaptions, boardSettings.muteVideos, setNodes])
 
   useEffect(() => {
     if (boardSettings.resetZoom && !loading) fitView({ duration: 400 })
   }, [boardSettings.resetZoom, fitView, loading])
 
-  // Map existing edges to updated global edgeStyle whenever it changes
   useEffect(() => {
     if (loading) return
     const targetType = boardSettings.edgeStyle || 'bezier'
@@ -178,31 +191,27 @@ function CanvasInner({ boardId, onBack }) {
     })
   }, [boardSettings.edgeStyle, setEdges, loading])
 
-  // ── Initialization ───────────────────────────────────────────────────────
+  // ── Load board ─────────────────────────────────────────────────────────────
   useEffect(() => {
     setLoading(true)
     boardsApi.get(boardId).then(r => {
       setBoard(r.data)
-      const s           = r.data.canvas_state || {}
-      // We removed pathNodeUrls to prevent modifying text literal localhost urls mistakenly.
-      // Image resolveUrl manages relative API mappings safely.
+      const s = r.data.canvas_state || {}
       const loadedNodes = (s.nodes || []).map(attachUpdater)
       const loadedEdges = s.edges || []
-      
       setNodes(loadedNodes)
       setEdges(loadedEdges)
-      if (s.bgConfig)      setBgConfig(s.bgConfig)
+      if (s.bgConfig) setBgConfig(s.bgConfig)
       if (s.boardSettings) setBoardSettings({ ...DEFAULT_SETTINGS, ...s.boardSettings })
-      
       setTimeout(() => initHistory(loadedNodes, loadedEdges), 100)
     }).catch(err => {
-      console.error(err);
-      notify('Failed to load board', 'error');
-      onBack();
+      console.error(err)
+      notify('Failed to load board', 'error')
+      onBack()
     }).finally(() => setLoading(false))
-  }, [boardId, attachUpdater, initHistory, onBack, setNodes, setEdges])
+  }, [boardId])  // ← intentionally minimal deps to avoid re-loading on every render
 
-  // ── Auto-Save ────────────────────────────────────────────────────────────
+  // ── Auto-save ──────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!board || loading) return
     clearTimeout(saveTimer.current)
@@ -214,19 +223,21 @@ function CanvasInner({ boardId, onBack }) {
           viewport: { x: 0, y: 0, zoom: 1 },
         })
         setLastSaved(new Date())
-      } catch(e) {
+      } catch (e) {
         console.error(e)
         notify('Failed to save canvas state', 'error')
-      } finally {
-        setSaving(false)
-      }
+      } finally { setSaving(false) }
     }, 1500)
   }, [nodes, edges, bgConfig, boardSettings, board, boardId, loading])
 
+  // ── Keyboard shortcuts ─────────────────────────────────────────────────────
   useEffect(() => {
     const onKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault(); setPaletteOpen(o => !o); return
+      }
       const tag = document.activeElement?.tagName?.toLowerCase()
-      const ce  = document.activeElement?.contentEditable
+      const ce = document.activeElement?.contentEditable
       if (tag === 'input' || tag === 'textarea' || ce === 'true') return
       if (e.key === 'Escape') {
         setNodes(ns => ns.map(n => ({ ...n, selected: false })))
@@ -235,13 +246,46 @@ function CanvasInner({ boardId, onBack }) {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [setNodes, setSelectedIds])
+  }, [setNodes])
 
-  // ── Upload ───────────────────────────────────────────────────────────────
+  // ── Canvas jump event (from OutlineDrawer / CommandPalette) ───────────────
+  // focusNode is now defined above this effect so it's safe to reference
+  useEffect(() => {
+    const handleJump = (e) => {
+      const topic = e.detail
+      const target = nodesRef.current.find(n => {
+        const d = n.data || {}
+        const title = (d.title || d.label || d.originalName || '').toLowerCase()
+        return title === topic.toLowerCase()
+      })
+      if (target) focusNode(target.id)
+      else addNode('textNote', { title: topic, text: '' }, null, nodesRef)
+    }
+    window.addEventListener('canvas-jump-node-name', handleJump)
+    return () => window.removeEventListener('canvas-jump-node-name', handleJump)
+  }, [focusNode, addNode])
+
+  // ── Command palette actions ────────────────────────────────────────────────
+  const handlePaletteAction = useCallback(action => {
+    if (action === 'add-text') addNode('textNote', { text: '' }, null, nodesRef)
+    if (action === 'add-group') addNode('groupBox', { label: 'Group', color: '#c9a96e' }, null, nodesRef)
+    if (action === 'upload-media') ctxFileRef.current?.click()
+    if (action === 'go-home') onBack()
+    if (action === 'toggle-theme') {
+      const themes = ['theme-obsidian', 'theme-midnight', 'theme-forest', 'theme-wine', 'theme-slate', 'theme-parchment']
+      const current = document.documentElement.className.split(' ').find(c => themes.includes(c)) || themes[0]
+      const nextId = (themes.indexOf(current) + 1) % themes.length
+      document.documentElement.className = themes[nextId]
+      localStorage.setItem('canvas-theme', themes[nextId])
+      notify('Theme changed to ' + themes[nextId].replace('theme-', ''))
+    }
+  }, [addNode, onBack])
+
+  // ── Upload ─────────────────────────────────────────────────────────────────
   const handleUpload = useCallback(async (files, screenPos = null) => {
     for (const file of files) {
       const sp = screenPos
-        ? { x: screenPos.x + Math.random()*40-20, y: screenPos.y + Math.random()*40-20 }
+        ? { x: screenPos.x + Math.random() * 40 - 20, y: screenPos.y + Math.random() * 40 - 20 }
         : null
       const name = file.name || ''
 
@@ -251,39 +295,32 @@ function CanvasInner({ boardId, onBack }) {
           const text = await new Promise((res, rej) => {
             const r = new FileReader(); r.onload = e => res(e.target.result); r.onerror = rej; r.readAsText(file)
           })
-          
           const ext = name.split('.').pop()
           const codeLangs = ['json', 'py', 'js', 'html', 'css', 'ts', 'jsx', 'tsx', 'java', 'cpp', 'sql']
           const langMap = { py: 'python', js: 'javascript', ts: 'typescript' }
-          const formattedText = codeLangs.includes(ext) 
-            ? `\`\`\`${langMap[ext] || ext}\n${text}\n\`\`\`` 
-            : text
-
-          addNode('textNote', { title: name, text: formattedText }, sp, nodesRef)
+          const formatted = codeLangs.includes(ext) ? `\`\`\`${langMap[ext] || ext}\n${text}\n\`\`\`` : text
+          addNode('textNote', { title: name, text: formatted }, sp, nodesRef)
           continue
-        } catch(e) { console.error(e); notify(`Failed to read ${name}`, 'error') }
+        } catch (e) { console.error(e); notify(`Failed to read ${name}`, 'error') }
       }
 
       if (name.endsWith('.docx')) {
         try {
-          const mammoth     = await import('mammoth')
+          const mammoth = await import('mammoth')
           const arrayBuffer = await file.arrayBuffer()
-          const result      = await mammoth.convertToMarkdown({ arrayBuffer })
+          const result = await mammoth.convertToMarkdown({ arrayBuffer })
           addNode('textNote', { title: name.replace(/\.docx$/, ''), text: result.value }, sp, nodesRef)
           continue
-        } catch(e) { console.error('mammoth failed:', e); notify(`Failed to import ${name}`, 'error') }
+        } catch (e) { console.error('mammoth failed:', e); notify(`Failed to import ${name}`, 'error') }
       }
 
       try {
         const { data: m } = await mediaApi.upload(boardId, file)
-        if      (m.file_type === 'image') addNode('imageNote', { src: m.url, originalName: m.original_name }, sp, nodesRef)
+        if (m.file_type === 'image') addNode('imageNote', { src: m.url, originalName: m.original_name }, sp, nodesRef)
         else if (m.file_type === 'video') addNode('videoNote', { src: m.url, originalName: m.original_name }, sp, nodesRef)
-        else                              addNode('fileNote',  { url: m.url, originalName: m.original_name, fileType: m.file_type }, sp, nodesRef)
+        else addNode('fileNote', { url: m.url, originalName: m.original_name, fileType: m.file_type }, sp, nodesRef)
         notify(`Uploaded ${m.original_name}`)
-      } catch(e) {
-        console.error(e)
-        notify(`Failed to upload ${name}`, 'error')
-      }
+      } catch (e) { console.error(e); notify(`Failed to upload ${name}`, 'error') }
     }
   }, [boardId, addNode])
 
@@ -318,12 +355,8 @@ function CanvasInner({ boardId, onBack }) {
     if (files.length) handleUpload(files, { x: e.clientX, y: e.clientY })
   }, [handleUpload])
 
-  // ── Interactions ─────────────────────────────────────────────────────────
-
-  const dragHistoryTimer = useRef(null)
-
+  // ── Drag handlers ──────────────────────────────────────────────────────────
   const onNodeDragStart = useCallback(() => {
-    // Cancel any pending history push from a prior drag
     clearTimeout(dragHistoryTimer.current)
   }, [])
 
@@ -331,35 +364,24 @@ function CanvasInner({ boardId, onBack }) {
     clearGuides()
     setNodes(ns => {
       const next = reparentNodes(draggedNode, ns)
-      // Debounce history push: only commit after 300ms idle
       clearTimeout(dragHistoryTimer.current)
       dragHistoryTimer.current = setTimeout(() => {
-        pushHistory(next, edgesRef.current, `Moved node`)
+        pushHistory(next, edgesRef.current, 'Moved node')
       }, 300)
       return next
     })
   }, [pushHistory, clearGuides, setNodes])
 
-  const focusNode = useCallback((id) => {
-    const n = getNode(id)
-    if (!n) return
-    setCenter(
-      n.position.x + (n.measured?.width  || 240) / 2,
-      n.position.y + (n.measured?.height || 180) / 2,
-      { zoom: 0.9, duration: 500 }
-    )
-  }, [getNode, setCenter])
-
   const deselectAll = useCallback(() => {
     setNodes(ns => ns.map(n => ({ ...n, selected: false })))
     setSelectedIds([])
-  }, [setNodes, setSelectedIds])
+  }, [setNodes])
 
   const onConnect = useCallback((p) => {
     setEdges(es => {
       const type = boardSettings.edgeStyle || 'bezier'
       const next = addEdge({ ...p, type }, es)
-      pushHistory(nodesRef.current, next, `Connected nodes`)
+      pushHistory(nodesRef.current, next, 'Connected nodes')
       return next
     })
   }, [pushHistory, setEdges, boardSettings.edgeStyle])
@@ -369,32 +391,31 @@ function CanvasInner({ boardId, onBack }) {
     setCtxMenu({ x: e.clientX, y: e.clientY })
   }, [])
 
+  // ── Loading screen ─────────────────────────────────────────────────────────
   if (loading) {
     return (
       <div className="canvas-editor-loading">
-        <div className="spinner"></div>
+        <div className="spinner" />
         <p>Loading Workspace...</p>
       </div>
     )
   }
 
-  const pattern      = bgConfig?.pattern || 'dots'
+  const pattern = bgConfig?.pattern || 'dots'
   const patternColor = bgConfig?.patternColor || '#2a2720'
-  const variantMap   = { dots: 'dots', lines: 'lines', cross: 'cross' }
-
-  // Re-enable GroupBox rendering
-  const visibleNodes = nodes;
+  const variantMap = { dots: 'dots', lines: 'lines', cross: 'cross' }
 
   return (
     <div className="canvas-editor" onPointerDown={() => setCtxMenu(null)}>
       <Toolbar
         board={board} boardId={boardId}
         saving={saving} lastSaved={lastSaved} onBack={onBack}
-        onAddText={()     => addNode('textNote',  { text: '' }, null, nodesRef)}
-        onAddGroup={()    => addNode('groupBox',  { label: 'Group', color: '#c9a96e' }, null, nodesRef)}
+        onAddText={() => addNode('textNote', { text: '' }, null, nodesRef)}
+        onAddGroup={() => addNode('groupBox', { label: 'Group', color: '#c9a96e' }, null, nodesRef)}
         onUpload={(files) => handleUpload(files)}
         bgConfig={bgConfig} onBgChange={setBgConfig}
         onOpenSettings={() => setSettingsOpen(true)}
+        onToggleOutline={() => setOutlineOpen(o => !o)}
       />
 
       <div
@@ -404,14 +425,14 @@ function CanvasInner({ boardId, onBack }) {
         onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy' }}
       >
         <ReactFlow
-          nodes={visibleNodes} edges={edges}
+          nodes={nodes} edges={edges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           onNodeDragStart={onNodeDragStart}
           onNodeDrag={onNodeDrag}
           onNodeDragStop={onNodeDragStop}
-          onNodeClick={(e, node) => bringToFront(node)}
+          onNodeClick={(_, node) => bringToFront(node)}
           nodeTypes={nodeTypes}
           onPaneContextMenu={onPaneContextMenu}
           onPaneClick={() => setCtxMenu(null)}
@@ -430,8 +451,11 @@ function CanvasInner({ boardId, onBack }) {
           )}
           <Controls showInteractive={false} />
           {boardSettings.showMinimap !== false && (
-            <MiniMap nodeColor={() => '#3d3930'} maskColor="rgba(14,13,11,0.75)"
-              style={{ background: 'var(--surface)', border: '1px solid var(--border2)', borderRadius: 8 }} />
+            <MiniMap
+              nodeColor={() => '#3d3930'}
+              maskColor="rgba(14,13,11,0.75)"
+              style={{ background: 'var(--surface)', border: '1px solid var(--border2)', borderRadius: 8 }}
+            />
           )}
           <AlignmentGuides guides={guides} />
         </ReactFlow>
@@ -450,10 +474,10 @@ function CanvasInner({ boardId, onBack }) {
           <ContextMenu
             x={ctxMenu.x} y={ctxMenu.y}
             onClose={() => setCtxMenu(null)}
-            onAddText={()     => addNode('textNote',  { text: '' },                         { x: ctxMenu.x, y: ctxMenu.y }, nodesRef)}
-            onAddGroup={()    => addNode('groupBox',  { label: 'Group', color: '#c9a96e' }, { x: ctxMenu.x, y: ctxMenu.y }, nodesRef)}
-            onAddMedia={()    => openCtxFileDialog({ x: ctxMenu.x, y: ctxMenu.y })}
-            onAddEmbed={(url) => addNode('embedNote', { url },                               { x: ctxMenu.x, y: ctxMenu.y }, nodesRef)}
+            onAddText={() => addNode('textNote', { text: '' }, { x: ctxMenu.x, y: ctxMenu.y }, nodesRef)}
+            onAddGroup={() => addNode('groupBox', { label: 'Group', color: '#c9a96e' }, { x: ctxMenu.x, y: ctxMenu.y }, nodesRef)}
+            onAddMedia={() => openCtxFileDialog({ x: ctxMenu.x, y: ctxMenu.y })}
+            onAddEmbed={(url) => addNode('embedNote', { url }, { x: ctxMenu.x, y: ctxMenu.y }, nodesRef)}
           />
         )}
 
@@ -477,6 +501,20 @@ function CanvasInner({ boardId, onBack }) {
         historyItems={historyItems}
         currentIndex={currentIndex}
         jumpToHistory={jumpToHistory}
+      />
+
+      <CommandPalette
+        isOpen={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        nodes={nodes}
+        onJumpToNode={focusNode}
+        onPerformAction={handlePaletteAction}
+      />
+      <OutlineDrawer
+        isOpen={outlineOpen}
+        onClose={() => setOutlineOpen(false)}
+        nodes={nodes}
+        onJumpToNode={focusNode}
       />
     </div>
   )

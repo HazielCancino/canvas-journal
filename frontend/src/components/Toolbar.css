@@ -13,13 +13,22 @@
   gap: 16px;
 }
 
-.toolbar-left, .toolbar-right, .toolbar-center {
+.toolbar-left,
+.toolbar-right,
+.toolbar-center {
   display: flex;
   align-items: center;
   gap: 8px;
 }
-.toolbar-left { min-width: 220px; }
-.toolbar-right { min-width: 220px; justify-content: flex-end; }
+
+.toolbar-left {
+  min-width: 220px;
+}
+
+.toolbar-right {
+  min-width: 220px;
+  justify-content: flex-end;
+}
 
 .toolbar-back {
   font-family: 'DM Mono', monospace;
@@ -28,7 +37,10 @@
   letter-spacing: 0.04em;
   padding: 5px 10px;
 }
-.toolbar-back:hover { color: var(--text); }
+
+.toolbar-back:hover {
+  color: var(--text);
+}
 
 .toolbar-divider {
   width: 1px;
@@ -56,27 +68,50 @@
   height: 40px;
   border-radius: 8px;
 }
+
 .tool-icon {
   font-size: 14px;
   line-height: 1;
   color: var(--text-dim);
 }
+
 .tool-label {
   font-size: 10px;
   font-family: 'DM Mono', monospace;
   color: var(--text-faint);
   letter-spacing: 0.05em;
 }
-.toolbar-tool:hover .tool-icon { color: var(--accent); }
-.toolbar-tool:hover .tool-label { color: var(--text-dim); }
+
+.toolbar-tool:hover .tool-icon {
+  color: var(--accent);
+}
+
+.toolbar-tool:hover .tool-label {
+  color: var(--text-dim);
+}
 
 .toolbar-save-status {
   font-family: 'DM Mono', monospace;
   font-size: 11px;
 }
-.save-pulse { color: var(--text-dim); animation: pulse 1s ease infinite; }
-.save-ok { color: var(--accent2); }
+
+.save-pulse {
+  color: var(--text-dim);
+  animation: pulse 1s ease infinite;
+}
+
+.save-ok {
+  color: var(--accent2);
+}
+
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.4;
+  }
 }

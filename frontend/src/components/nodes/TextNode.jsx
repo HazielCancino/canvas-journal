@@ -337,6 +337,25 @@ function InteractivePreview({ text, onToggle, fontCls }) {
       }
       return <li>{children}</li>
     },
+    // WikiLinks and standard links
+    a({ href, children, ...props }) {
+      if (href?.startsWith('wl://')) {
+        const topic = decodeURIComponent(href.slice(5))
+        return (
+          <span 
+            className="text-wikilink" 
+            onClick={(e) => { 
+              e.stopPropagation()
+              window.dispatchEvent(new CustomEvent('canvas-jump-node-name', { detail: topic }))
+            }}
+            title={`Jump to or create '${topic}'`}
+          >
+            [[{children}]]
+          </span>
+        )
+      }
+      return <a href={href} target="_blank" rel="noopener noreferrer" {...props}>{children}</a>
+    },
     // Don't render the raw input elements from GFM
     input() { return null },
     // Code blocks with syntax highlighting
@@ -360,9 +379,13 @@ function InteractivePreview({ text, onToggle, fontCls }) {
     }
   }
 
+  const processedText = (text || '').replace(/\[\[(.*?)\]\]/g, (match, topic) => {
+    return `[${topic}](wl://${encodeURIComponent(topic)})`
+  })
+
   return (
     <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
-      {text}
+      {processedText}
     </ReactMarkdown>
   )
 }

@@ -209,6 +209,14 @@ export default function BoardSettings({
               </span>
               <Toggle value={settings.autoplayVideos} onChange={v => set('autoplayVideos', v)} />
             </label>
+
+            <label className="bs-toggle-row">
+              <span className="bs-toggle-label">
+                <span className="bs-toggle-icon">🔇</span>
+                Mute videos by default
+              </span>
+              <Toggle value={settings.muteVideos !== false} onChange={v => set('muteVideos', v)} />
+            </label>
           </section>
 
           {/* ── Typography ── */}

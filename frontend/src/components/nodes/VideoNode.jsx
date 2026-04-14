@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { Handle, Position, NodeResizer } from '@xyflow/react'
 import { resolveUrl } from '../../api'
 import NodeWrapper from './NodeWrapper'
@@ -7,6 +8,13 @@ export default function VideoNode({ data, selected }) {
   const bs  = data._boardSettings || {}
   const loop = bs.loopVideos    ?? false
   const auto = bs.autoplayVideos ?? false
+  const muteDefault = bs.muteVideos !== false
+
+  const [localMute, setLocalMute] = useState(auto || muteDefault)
+
+  useEffect(() => {
+    setLocalMute(auto || muteDefault)
+  }, [auto, muteDefault])
 
   return (
     <NodeWrapper selected={selected} onDelete={data._delete}>
@@ -27,7 +35,8 @@ export default function VideoNode({ data, selected }) {
             controls
             loop={loop}
             autoPlay={auto}
-            muted={auto}        /* browsers require muted for autoplay */
+            muted={localMute}
+            onVolumeChange={(e) => setLocalMute(e.target.muted || e.target.volume === 0)}
             playsInline
           />
         </div>

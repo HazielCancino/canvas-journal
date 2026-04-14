@@ -4,46 +4,46 @@ import ThemeSwitcher from '../components/ThemeSwitcher'
 import './BoardList.css'
 
 const PRIORITY = [
-  { value: 0, label: 'None',   color: 'transparent' },
-  { value: 1, label: 'Low',    color: '#6ec98a' },
+  { value: 0, label: 'None', color: 'transparent' },
+  { value: 1, label: 'Low', color: '#6ec98a' },
   { value: 2, label: 'Medium', color: '#c9a96e' },
-  { value: 3, label: 'High',   color: '#c96e6e' },
+  { value: 3, label: 'High', color: '#c96e6e' },
   { value: 4, label: 'Urgent', color: '#9e4ec9' },
 ]
 
 const TAG_PALETTE = [
-  '#c9a96e','#6ec98a','#6e9ec9','#c96e8a','#9e6ec9',
-  '#6ec9c9','#c9c96e','#c96e6e','#888','#e8d5b0',
+  '#c9a96e', '#6ec98a', '#6e9ec9', '#c96e8a', '#9e6ec9',
+  '#6ec9c9', '#c9c96e', '#c96e6e', '#888', '#e8d5b0',
 ]
 
 const SORT_OPTIONS = [
-  { value: 'updated',     label: 'Last edited' },
+  { value: 'updated', label: 'Last edited' },
   { value: 'last_opened', label: 'Last opened' },
-  { value: 'created',     label: 'Date created' },
-  { value: 'name',        label: 'Name (A–Z)' },
-  { value: 'priority',    label: 'Priority' },
+  { value: 'created', label: 'Date created' },
+  { value: 'name', label: 'Name (A–Z)' },
+  { value: 'priority', label: 'Priority' },
 ]
 
 function timeAgo(iso) {
   if (!iso) return ''
   const diff = (Date.now() - new Date(iso)) / 1000
-  if (diff < 60)    return 'just now'
-  if (diff < 3600)  return `${Math.floor(diff/60)}m ago`
-  if (diff < 86400) return `${Math.floor(diff/3600)}h ago`
-  return `${Math.floor(diff/86400)}d ago`
+  if (diff < 60) return 'just now'
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
+  return `${Math.floor(diff / 86400)}d ago`
 }
 
 // ── BoardList (home screen) ──────────────────────────────────────────────────
 export default function BoardList({ onOpen, themeKey, setThemeKey, transparencyEnabled, setTransparencyEnabled }) {
-  const [boards, setBoards]             = useState([])
-  const [search, setSearch]             = useState('')
-  const [sortBy, setSortBy]             = useState('updated')
-  const [filterTags, setFilterTags]     = useState([])
+  const [boards, setBoards] = useState([])
+  const [search, setSearch] = useState('')
+  const [sortBy, setSortBy] = useState('updated')
+  const [filterTags, setFilterTags] = useState([])
   const [showArchived, setShowArchived] = useState(false)
-  const [creating, setCreating]         = useState(false)
-  const [newName, setNewName]           = useState('')
-  const [allTags, setAllTags]           = useState([])
-  const [activeMenu, setActiveMenu]     = useState(null)
+  const [creating, setCreating] = useState(false)
+  const [newName, setNewName] = useState('')
+  const [allTags, setAllTags] = useState([])
+  const [activeMenu, setActiveMenu] = useState(null)
 
   const load = useCallback(() => {
     boardsApi.list(showArchived).then(r => {
@@ -78,7 +78,7 @@ export default function BoardList({ onOpen, themeKey, setThemeKey, transparencyE
       if (!showArchived && b.archived) return false
       const q = search.toLowerCase()
       const matchName = b.name.toLowerCase().includes(q)
-      const matchTag  = (b.tags || []).some(t => t.label.toLowerCase().includes(q))
+      const matchTag = (b.tags || []).some(t => t.label.toLowerCase().includes(q))
       if (q && !matchName && !matchTag) return false
       if (filterTags.length > 0) {
         const bLabels = (b.tags || []).map(t => t.label)
@@ -90,10 +90,10 @@ export default function BoardList({ onOpen, themeKey, setThemeKey, transparencyE
       if (a.pinned !== b.pinned) return b.pinned ? 1 : -1
       switch (sortBy) {
         case 'last_opened': return new Date(b.last_opened_at || 0) - new Date(a.last_opened_at || 0)
-        case 'created':     return new Date(b.created_at) - new Date(a.created_at)
-        case 'name':        return a.name.localeCompare(b.name)
-        case 'priority':    return (b.priority || 0) - (a.priority || 0)
-        default:            return new Date(b.updated_at) - new Date(a.updated_at)
+        case 'created': return new Date(b.created_at) - new Date(a.created_at)
+        case 'name': return a.name.localeCompare(b.name)
+        case 'priority': return (b.priority || 0) - (a.priority || 0)
+        default: return new Date(b.updated_at) - new Date(a.updated_at)
       }
     })
 
@@ -222,14 +222,14 @@ export default function BoardList({ onOpen, themeKey, setThemeKey, transparencyE
 
 // ── Individual board card ────────────────────────────────────────────────────
 function BoardCard({ board, isMenuOpen, onMenuOpen, onMenuClose, onOpen, onRefresh }) {
-  const [renaming, setRenaming]    = useState(false)
-  const [nameVal, setNameVal]      = useState(board.name)
+  const [renaming, setRenaming] = useState(false)
+  const [nameVal, setNameVal] = useState(board.name)
   const [editingDesc, setEditDesc] = useState(false)
-  const [descVal, setDescVal]      = useState(board.description || '')
+  const [descVal, setDescVal] = useState(board.description || '')
   const [editingTags, setEditTags] = useState(false)
-  const [tagInput, setTagInput]    = useState('')
-  const [tagColor, setTagColor]    = useState(TAG_PALETTE[0])
-  const [localBoard, setLocal]     = useState(board)
+  const [tagInput, setTagInput] = useState('')
+  const [tagColor, setTagColor] = useState(TAG_PALETTE[0])
+  const [localBoard, setLocal] = useState(board)
   const coverRef = useRef()
 
   useEffect(() => {

@@ -39,12 +39,12 @@ export function useHistoryStack({ setNodes, setEdges, attachUpdater, cleanNodes 
     const snap = historyRef.current[index];
     if (!snap) return;
     isUndoing.current = true;
-    
+
     // Attach updaters back to nodes when restoring
     setNodes(snap.nodes.map(attachUpdater));
     setEdges(snap.edges);
     setCurrentIndex(index);
-    
+
     setTimeout(() => { isUndoing.current = false; }, 50);
   }, [attachUpdater, setNodes, setEdges]);
 
