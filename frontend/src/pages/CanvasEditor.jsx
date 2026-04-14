@@ -320,11 +320,22 @@ function CanvasInner({ boardId, onBack }) {
 
   // ── Interactions ─────────────────────────────────────────────────────────
 
+  const dragHistoryTimer = useRef(null)
+
+  const onNodeDragStart = useCallback(() => {
+    // Cancel any pending history push from a prior drag
+    clearTimeout(dragHistoryTimer.current)
+  }, [])
+
   const onNodeDragStop = useCallback((_, draggedNode) => {
     clearGuides()
     setNodes(ns => {
       const next = reparentNodes(draggedNode, ns)
-      pushHistory(next, edgesRef.current, `Moved node`)
+      // Debounce history push: only commit after 300ms idle
+      clearTimeout(dragHistoryTimer.current)
+      dragHistoryTimer.current = setTimeout(() => {
+        pushHistory(next, edgesRef.current, `Moved node`)
+      }, 300)
       return next
     })
   }, [pushHistory, clearGuides, setNodes])
@@ -371,8 +382,8 @@ function CanvasInner({ boardId, onBack }) {
   const patternColor = bgConfig?.patternColor || '#2a2720'
   const variantMap   = { dots: 'dots', lines: 'lines', cross: 'cross' }
 
-  // Temporarily disable GroupBox rendering while preserving state
-  const visibleNodes = nodes.filter(n => n.type !== 'groupBox')
+  // Re-enable GroupBox rendering
+  const visibleNodes = nodes;
 
   return (
     <div className="canvas-editor" onPointerDown={() => setCtxMenu(null)}>
@@ -397,6 +408,7 @@ function CanvasInner({ boardId, onBack }) {
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
+          onNodeDragStart={onNodeDragStart}
           onNodeDrag={onNodeDrag}
           onNodeDragStop={onNodeDragStop}
           onNodeClick={(e, node) => bringToFront(node)}

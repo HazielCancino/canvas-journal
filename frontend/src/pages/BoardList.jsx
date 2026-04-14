@@ -34,7 +34,7 @@ function timeAgo(iso) {
 }
 
 // ── BoardList (home screen) ──────────────────────────────────────────────────
-export default function BoardList({ onOpen, themeKey, setThemeKey }) {
+export default function BoardList({ onOpen, themeKey, setThemeKey, transparencyEnabled, setTransparencyEnabled }) {
   const [boards, setBoards]             = useState([])
   const [search, setSearch]             = useState('')
   const [sortBy, setSortBy]             = useState('updated')
@@ -109,7 +109,17 @@ export default function BoardList({ onOpen, themeKey, setThemeKey }) {
             <span className="bl-brand-icon">◈</span>
             <h1 className="bl-title">Canvas Journal</h1>
           </div>
-          <ThemeSwitcher themeKey={themeKey} setThemeKey={setThemeKey} />
+          <div className="bl-header-actions">
+            <button
+              className={`bl-transparency-btn ${transparencyEnabled ? 'active' : ''}`}
+              onClick={() => setTransparencyEnabled(v => !v)}
+              title={transparencyEnabled ? 'Disable transparency' : 'Enable transparency'}
+            >
+              <span className="bl-transparency-icon">{transparencyEnabled ? '◉' : '◎'}</span>
+              <span className="bl-transparency-label">{transparencyEnabled ? 'opaque' : 'glass'}</span>
+            </button>
+            <ThemeSwitcher themeKey={themeKey} setThemeKey={setThemeKey} />
+          </div>
         </div>
 
         {/* Search + sort */}

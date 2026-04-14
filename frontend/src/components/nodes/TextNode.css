@@ -345,3 +345,30 @@
 
 /* ── Fmt toolbar: task button ────────────────────────────────────────────────── */
 .fmt-btn[title*="Task"] { letter-spacing: 0; }
+
+/* ── Text size controls ─────────────────────────────────────────────────────── */
+.text-size-btn {
+  font-weight: 700 !important;
+  font-size: 10px !important;
+  min-width: 20px;
+  text-align: center;
+  padding: 1px 4px !important;
+}
+.text-size-btn:disabled {
+  opacity: 0.25;
+  cursor: default;
+  pointer-events: none;
+}
+.text-size-btn:not(:disabled):hover {
+  color: var(--accent) !important;
+  background: color-mix(in srgb, var(--accent) 12%, transparent) !important;
+}
+.text-size-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 8px;
+  color: var(--text-faint);
+  letter-spacing: 0.04em;
+  min-width: 18px;
+  text-align: center;
+  user-select: none;
+}

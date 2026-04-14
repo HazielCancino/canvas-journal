@@ -120,9 +120,22 @@ export const THEMES = {
   },
 }
 
+// Convert hex color to r,g,b string for rgba() usage
+function hexToRgb(hex) {
+  const h = hex.replace('#', '')
+  const r = parseInt(h.substring(0, 2), 16)
+  const g = parseInt(h.substring(2, 4), 16)
+  const b = parseInt(h.substring(4, 6), 16)
+  return `${r}, ${g}, ${b}`
+}
+
 export function useTheme() {
   const [themeKey, setThemeKey] = useState(() => {
     return localStorage.getItem('canvas-theme') || 'obsidian'
+  })
+
+  const [transparencyEnabled, setTransparencyEnabled] = useState(() => {
+    return localStorage.getItem('canvas-transparency') === 'true'
   })
 
   useEffect(() => {
@@ -131,10 +144,24 @@ export function useTheme() {
     Object.entries(theme).forEach(([key, val]) => {
       if (key.startsWith('--')) root.style.setProperty(key, val)
     })
-    // also set bg on body directly
-    document.body.style.background = theme['--bg']
-    localStorage.setItem('canvas-theme', themeKey)
-  }, [themeKey])
+    // Set RGB versions for rgba() usage in transparency mode
+    if (theme['--surface']) root.style.setProperty('--surface-rgb', hexToRgb(theme['--surface']))
+    if (theme['--bg'])      root.style.setProperty('--bg-rgb',      hexToRgb(theme['--bg']))
 
-  return { themeKey, setThemeKey, themes: THEMES }
+    // Apply transparency or normal background
+    if (transparencyEnabled) {
+      root.classList.add('transparency-mode')
+      document.body.style.background = 'transparent'
+    } else {
+      root.classList.remove('transparency-mode')
+      document.body.style.background = theme['--bg']
+    }
+    localStorage.setItem('canvas-theme', themeKey)
+  }, [themeKey, transparencyEnabled])
+
+  useEffect(() => {
+    localStorage.setItem('canvas-transparency', String(transparencyEnabled))
+  }, [transparencyEnabled])
+
+  return { themeKey, setThemeKey, themes: THEMES, transparencyEnabled, setTransparencyEnabled }
 }

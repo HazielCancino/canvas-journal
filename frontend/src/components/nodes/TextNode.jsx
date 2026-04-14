@@ -367,6 +367,9 @@ function InteractivePreview({ text, onToggle, fontCls }) {
   )
 }
 
+// ── Text size steps ───────────────────────────────────────────────────────────
+const TEXT_SIZES = [0.8, 1, 1.25, 1.5, 2, 2.5, 3]
+
 // ── Main TextNode ─────────────────────────────────────────────────────────────
 export default function TextNode({ data, selected }) {
   const [editing,   setEditing]   = useState(!data.text && !data.title)
@@ -375,6 +378,7 @@ export default function TextNode({ data, selected }) {
   const [fontIdx,   setFontIdx]   = useState(data.fontIdx  ?? 0)
   const [wordGoal,  setWordGoal]  = useState(data.wordGoal ?? 0)
   const [starred,   setStarred]   = useState(data.starred  ?? false)
+  const [textSize,  setTextSize]  = useState(data.textSize ?? 1)
   const [focusMode, setFocusMode] = useState(false)
   const [codeModal, setCodeModal] = useState(false)
   const [copied,    setCopied]    = useState(false)
@@ -392,8 +396,9 @@ export default function TextNode({ data, selected }) {
       setFontIdx(data.fontIdx  ?? 0)
       setWordGoal(data.wordGoal ?? 0)
       setStarred(data.starred   ?? false)
+      setTextSize(data.textSize ?? 1)
     }
-  }, [data.text, data.title, data.fontIdx, data.wordGoal, data.starred])
+  }, [data.text, data.title, data.fontIdx, data.wordGoal, data.starred, data.textSize])
 
   // External focus mode trigger (from NodeContextMenu)
   useEffect(() => {
@@ -403,9 +408,9 @@ export default function TextNode({ data, selected }) {
   useEffect(() => { if (editing && taRef.current) taRef.current.focus() }, [editing])
 
   const commit = useCallback(() => {
-    if (data._update) data._update({ text, title, fontIdx, wordGoal, starred })
+    if (data._update) data._update({ text, title, fontIdx, wordGoal, starred, textSize })
     setEditing(false)
-  }, [data, text, title, fontIdx, wordGoal, starred])
+  }, [data, text, title, fontIdx, wordGoal, starred, textSize])
 
   const cancel = useCallback(() => {
     setText(data.text || ''); setTitle(data.title || ''); setFontIdx(data.fontIdx ?? 0)
@@ -413,9 +418,9 @@ export default function TextNode({ data, selected }) {
   }, [data])
 
   const exitFocus = useCallback(() => {
-    if (data._update) data._update({ text, title, fontIdx, wordGoal, starred })
+    if (data._update) data._update({ text, title, fontIdx, wordGoal, starred, textSize })
     setFocusMode(false)
-  }, [data, text, title, fontIdx, wordGoal, starred])
+  }, [data, text, title, fontIdx, wordGoal, starred, textSize])
 
   const cycleFont = useCallback((e) => {
     e.stopPropagation()
@@ -465,6 +470,26 @@ export default function TextNode({ data, selected }) {
 
   const openCodeModal = useCallback(() => setCodeModal(true), [])
 
+  const increaseTextSize = useCallback((e) => {
+    e.stopPropagation()
+    const idx = TEXT_SIZES.indexOf(textSize)
+    if (idx < TEXT_SIZES.length - 1) {
+      const next = TEXT_SIZES[idx + 1]
+      setTextSize(next)
+      if (data._update) data._update({ textSize: next })
+    }
+  }, [textSize, data])
+
+  const decreaseTextSize = useCallback((e) => {
+    e.stopPropagation()
+    const idx = TEXT_SIZES.indexOf(textSize)
+    if (idx > 0) {
+      const next = TEXT_SIZES[idx - 1]
+      setTextSize(next)
+      if (data._update) data._update({ textSize: next })
+    }
+  }, [textSize, data])
+
   const borderColor = starred
     ? '#c9a96e'
     : selected ? 'var(--accent)' : color.border
@@ -509,6 +534,15 @@ export default function TextNode({ data, selected }) {
             >⭐</button>
             <button className="text-bar-btn" title={`Font: ${FONTS[fontIdx].label}`}
               onPointerDown={e => e.stopPropagation()} onClick={cycleFont}>{FONTS[fontIdx].label}</button>
+            <span className="fmt-sep" />
+            <button className="text-bar-btn text-size-btn" title="Decrease text size"
+              onPointerDown={e => e.stopPropagation()} onClick={decreaseTextSize}
+              disabled={textSize <= TEXT_SIZES[0]}>A-</button>
+            <span className="text-size-label">{textSize === 1 ? '1×' : `${textSize}×`}</span>
+            <button className="text-bar-btn text-size-btn" title="Increase text size"
+              onPointerDown={e => e.stopPropagation()} onClick={increaseTextSize}
+              disabled={textSize >= TEXT_SIZES[TEXT_SIZES.length - 1]}>A+</button>
+            <span className="fmt-sep" />
             <button className="text-bar-btn" title="Focus mode"
               onPointerDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); setFocusMode(true) }}>⤢</button>
           </div>
@@ -539,6 +573,7 @@ export default function TextNode({ data, selected }) {
         ) : (
           <div
             className={`text-node-preview ${fontCls}`}
+            style={textSize !== 1 ? { fontSize: `${13 * textSize}px`, lineHeight: 1.7 } : undefined}
             onDoubleClick={() => setEditing(true)}
           >
             {text

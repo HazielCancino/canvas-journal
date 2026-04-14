@@ -57,3 +57,11 @@ html, body, #root {
 }
 .input:focus { border-color: var(--accent2); }
 .input::placeholder { color: var(--text-dim); }
+
+/* ── Transparency Mode ── */
+.transparency-mode,
+.transparency-mode body,
+.transparency-mode #root,
+.transparency-mode .app {
+  background: transparent !important;
+}

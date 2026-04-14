@@ -6,7 +6,7 @@ import './App.css'
 
 export default function App() {
   const [currentBoard, setCurrentBoard] = useState(null)
-  const { themeKey, setThemeKey } = useTheme()
+  const { themeKey, setThemeKey, transparencyEnabled, setTransparencyEnabled } = useTheme()
 
   return (
     <div className="app">
@@ -17,6 +17,8 @@ export default function App() {
           onOpen={setCurrentBoard}
           themeKey={themeKey}
           setThemeKey={setThemeKey}
+          transparencyEnabled={transparencyEnabled}
+          setTransparencyEnabled={setTransparencyEnabled}
         />
       )}
     </div>

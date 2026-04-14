@@ -315,3 +315,71 @@
   font-family: 'DM Mono', monospace; font-size: 13px;
   color: var(--text-faint); letter-spacing: 0.06em;
 }
+
+/* ── Header actions row ── */
+.bl-header-actions {
+  display: flex; align-items: center; gap: 10px;
+}
+
+/* ── Transparency toggle button ── */
+.bl-transparency-btn {
+  display: flex; align-items: center; gap: 5px;
+  padding: 6px 12px; border-radius: 8px;
+  background: none; border: 1px solid var(--border);
+  color: var(--text-faint);
+  font-family: 'DM Mono', monospace; font-size: 10px;
+  letter-spacing: 0.04em; cursor: pointer;
+  transition: all 0.15s;
+}
+.bl-transparency-btn:hover {
+  border-color: var(--accent2); color: var(--accent);
+}
+.bl-transparency-btn.active {
+  border-color: var(--accent); color: var(--accent);
+  background: rgba(var(--bg-rgb, 14,13,11), 0.3);
+}
+.bl-transparency-icon { font-size: 13px; line-height: 1; }
+.bl-transparency-label { text-transform: uppercase; }
+
+/* ── Transparency Mode overrides ── */
+.transparency-mode .board-list-page {
+  background: transparent;
+}
+.transparency-mode .bl-header {
+  background: transparent;
+}
+.transparency-mode .bl-card {
+  background: rgba(var(--surface-rgb, 26,24,20), 0.55);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-color: rgba(var(--surface-rgb, 26,24,20), 0.3);
+}
+.transparency-mode .bl-card:hover {
+  background: rgba(var(--surface-rgb, 26,24,20), 0.7);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+.transparency-mode .bl-card-new {
+  background: transparent !important;
+  border-color: rgba(var(--surface-rgb, 26,24,20), 0.4) !important;
+}
+.transparency-mode .bl-card-new:hover {
+  background: rgba(var(--surface-rgb, 26,24,20), 0.2) !important;
+}
+.transparency-mode .bl-cover {
+  background-color: rgba(var(--surface-rgb, 26,24,20), 0.4);
+}
+.transparency-mode .bl-search {
+  background: rgba(var(--surface-rgb, 26,24,20), 0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.transparency-mode .bl-sort-select {
+  background: rgba(var(--surface-rgb, 26,24,20), 0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.transparency-mode .bl-menu {
+  background: rgba(var(--surface-rgb, 26,24,20), 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
